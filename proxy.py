@@ -10,9 +10,9 @@ from collections import defaultdict
 
 app = Flask(__name__)
 
-API_KEY = "test123"
-DB_PATH = "/data/data/com.termux/files/home/miproxy/cesarai.db"
-HTML_PATH = "/data/data/com.termux/files/home/miproxy/index.html"
+API_KEY = os.environ.get("API_KEY", "test123")
+DB_PATH = os.path.join(os.path.dirname(__file__), 'cesarai.db')
+HTML_PATH = os.path.join(os.path.dirname(__file__), 'index.html')
 
 image_sessions = {}
 
