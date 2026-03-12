@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CesarIA</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0f;--bg2:#0f0f1a;--bg3:#13131f;--panel:#16162a;--border:#1e1e35;
+--accent:#7c6af7;--accent2:#e040fb;--accent3:#00e5ff;--text:#e8e8f0;--text2:#8888aa;
+--text3:#555577;--success:#00c97a;--danger:#ff4444;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);display:flex;height:100dvh;}
+body::before{content:'';position:fixed;top:-40%;left:-20%;width:60%;height:80%;
+background:radial-gradient(ellipse,rgba(124,106,247,0.05) 0%,transparent 70%);pointer-events:none;z-index:0;}
+
+#sidebar{width:260px;min-width:260px;background:var(--panel);border-right:1px solid var(--border);
+display:flex;flex-direction:column;z-index:10;transition:transform .3s cubic-bezier(.4,0,.2,1);}
+.sidebar-header{padding:18px 14px 14px;border-bottom:1px solid var(--border);}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;
+box-shadow:0 0 20px rgba(124,106,247,0.3);}
+.logo-text{font-size:19px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));
+-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.new-chat-btn{width:100%;padding:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+border:none;border-radius:10px;color:white;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;
+cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:opacity .2s,transform .1s;}
+.new-chat-btn:hover{opacity:.9;transform:translateY(-1px);}
+.chats-list{flex:1;overflow-y:auto;padding:6px;}
+.chats-list::-webkit-scrollbar{width:3px;}
+.chats-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.chat-item{padding:9px 11px;border-radius:8px;cursor:pointer;transition:background .15s;
+display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;}
+.chat-item:hover{background:var(--bg3);}
+.chat-item.active{background:rgba(124,106,247,.12);border:1px solid rgba(124,106,247,.2);}
+.chat-item-title{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;
+text-overflow:ellipsis;flex:1;font-family:'Space Mono',monospace;}
+.chat-item.active .chat-item-title{color:var(--text);}
+.chat-delete{background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 5px;
+border-radius:4px;font-size:13px;opacity:0;transition:opacity .2s,color .2s;flex-shrink:0;}
+.chat-item:hover .chat-delete{opacity:1;}
+.chat-delete:hover{color:var(--danger);}
+.chats-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px;font-family:'Space Mono',monospace;}
+.sidebar-footer{padding:10px;border-top:1px solid var(--border);}
+.stats-bar{display:flex;gap:6px;margin-bottom:8px;}
+.stat{flex:1;background:var(--bg3);border-radius:8px;padding:7px;text-align:center;border:1px solid var(--border);}
+.stat-value{font-size:15px;font-weight:800;color:var(--accent);font-family:'Space Mono',monospace;}
+.stat-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:1px;}
+.settings-btn{width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+color:var(--text2);font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;
+display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;}
+.settings-btn:hover{background:var(--border);color:var(--text);}
+
+#main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;z-index:1;}
+#topbar{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);gap:10px;
+background:rgba(10,10,15,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);flex-shrink:0;}
+#menu-btn{display:none;background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px;}
+.model-select{background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);
+font-family:'Space Mono',monospace;font-size:10px;padding:5px 8px;cursor:pointer;outline:none;
+max-width:180px;transition:border-color .2s;}
+.model-select:focus{border-color:var(--accent);}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--success);
+box-shadow:0 0 8px var(--success);flex-shrink:0;animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.topbar-title{font-size:12px;color:var(--text2);flex:1;font-family:'Space Mono',monospace;
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.img-active-badge{background:rgba(0,229,255,.15);border:1px solid rgba(0,229,255,.3);
+border-radius:6px;padding:3px 8px;font-size:10px;color:var(--accent3);font-family:'Space Mono',monospace;
+cursor:pointer;flex-shrink:0;display:none;}
+.img-active-badge.visible{display:block;}
+.img-gen-btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+color:var(--text2);font-size:16px;padding:5px 9px;cursor:pointer;transition:all .2s;flex-shrink:0;}
+.img-gen-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+
+#messages{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;
+gap:14px;scroll-behavior:smooth;}
+#messages::-webkit-scrollbar{width:3px;}
+#messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.message{display:flex;flex-direction:column;gap:3px;animation:msgIn .25s ease;max-width:100%;}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.message.user{align-items:flex-end;}
+.message.assistant{align-items:flex-start;}
+.msg-header{display:flex;align-items:center;gap:5px;padding:0 3px;}
+.msg-role{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;font-family:'Space Mono',monospace;}
+.message.user .msg-role{color:var(--accent2);}
+.message.assistant .msg-role{color:var(--accent);}
+.msg-model{font-size:9px;color:var(--text3);font-family:'Space Mono',monospace;}
+.msg-bubble{max-width:min(88%,680px);padding:11px 14px;border-radius:14px;font-size:14px;line-height:1.65;}
+.message.user .msg-bubble{background:#1a1a30;border:1px solid rgba(224,64,251,.15);border-bottom-right-radius:3px;}
+.message.assistant .msg-bubble{background:#111120;border:1px solid rgba(124,106,247,.15);border-bottom-left-radius:3px;}
+.msg-bubble pre{background:#0a0a12;border:1px solid var(--border);border-radius:8px;padding:10px;
+overflow-x:auto;margin:8px 0;font-family:'Space Mono',monospace;font-size:12px;}
+.msg-bubble code:not(pre code){background:rgba(124,106,247,.15);padding:2px 5px;border-radius:4px;
+font-family:'Space Mono',monospace;font-size:12px;color:var(--accent3);}
+.msg-bubble p{margin-bottom:7px;}
+.msg-bubble p:last-child{margin-bottom:0;}
+.msg-bubble ul,.msg-bubble ol{padding-left:16px;margin:5px 0;}
+.msg-bubble li{margin-bottom:3px;}
+.msg-bubble strong{color:var(--accent3);}
+.msg-bubble img{max-width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--border);}
+.msg-image-thumb{max-width:200px;max-height:200px;border-radius:8px;margin-top:6px;
+border:1px solid rgba(224,64,251,.3);display:block;}
+
+.typing-indicator{display:flex;align-items:center;gap:5px;padding:12px 14px;}
+.typing-dot{width:7px;height:7px;border-radius:50%;animation:typingBounce 1.2s ease-in-out infinite;}
+.typing-dot:nth-child(1){background:var(--accent);animation-delay:0s}
+.typing-dot:nth-child(2){background:var(--accent2);animation-delay:.2s}
+.typing-dot:nth-child(3){background:var(--accent3);animation-delay:.4s}
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-8px);opacity:1}}
+
+#welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;
+flex:1;text-align:center;padding:40px 20px;gap:14px;animation:msgIn .4s ease;}
+.welcome-icon{font-size:52px;filter:drop-shadow(0 0 20px rgba(124,106,247,.5));animation:float 3s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.welcome-title{font-size:26px;font-weight:800;
+background:linear-gradient(135deg,var(--accent),var(--accent2),var(--accent3));
+-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;}
+.welcome-sub{font-size:13px;color:var(--text2);max-width:280px;line-height:1.6;font-family:'Space Mono',monospace;}
+
+#quick-btns{display:flex;gap:7px;padding:0 14px 8px;overflow-x:auto;flex-shrink:0;}
+#quick-btns::-webkit-scrollbar{display:none;}
+.quick-btn{white-space:nowrap;padding:6px 12px;background:var(--bg3);border:1px solid var(--border);
+border-radius:20px;color:var(--text2);font-family:'Space Mono',monospace;font-size:11px;
+cursor:pointer;transition:all .2s;flex-shrink:0;}
+.quick-btn:hover{background:rgba(124,106,247,.1);border-color:var(--accent);color:var(--text);}
+
+#input-area{padding:10px 14px 16px;background:rgba(10,10,15,.95);backdrop-filter:blur(20px);
+-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);flex-shrink:0;}
+#img-preview-area{margin-bottom:6px;}
+.img-preview{display:flex;align-items:center;gap:8px;background:var(--bg3);
+border:1px solid var(--border);border-radius:8px;padding:6px 10px;}
+.img-preview img{width:40px;height:40px;border-radius:5px;object-fit:cover;}
+.img-preview-name{font-size:11px;color:var(--text2);font-family:'Space Mono',monospace;flex:1;}
+.img-preview-remove{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;}
+.input-wrapper{display:flex;align-items:flex-end;gap:7px;background:var(--bg3);
+border:1px solid var(--border);border-radius:16px;padding:7px 7px 7px 14px;
+transition:border-color .2s,box-shadow .2s;}
+.input-wrapper:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,106,247,.1);}
+#msg-input{flex:1;background:none;border:none;color:var(--text);font-family:'Syne',sans-serif;
+font-size:14px;resize:none;outline:none;max-height:110px;min-height:22px;line-height:1.5;padding:3px 0;}
+#msg-input::placeholder{color:var(--text3);}
+.input-btn{width:34px;height:34px;border:none;border-radius:9px;cursor:pointer;
+display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;flex-shrink:0;}
+#img-upload-btn{background:var(--bg2);color:var(--text2);}
+#img-upload-btn:hover{background:rgba(0,229,255,.1);color:var(--accent3);}
+#img-upload-btn.has-image{background:rgba(0,229,255,.15);color:var(--accent3);}
+#voice-btn{background:var(--bg2);color:var(--text2);}
+#voice-btn:hover{background:rgba(0,229,255,.1);color:var(--accent3);}
+#voice-btn.recording{background:rgba(255,68,68,.15);color:var(--danger);animation:recordPulse 1s ease-in-out infinite;}
+@keyframes recordPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,68,68,.3)}50%{box-shadow:0 0 0 7px rgba(255,68,68,0)}}
+#send-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;
+box-shadow:0 0 15px rgba(124,106,247,.3);}
+#send-btn:hover{opacity:.9;transform:scale(1.05);}
+#send-btn:active{transform:scale(.97);}
+#send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+#file-input{display:none;}
+
+#tts-bar{display:none;align-items:center;gap:8px;padding:7px 14px;
+background:rgba(0,229,255,.04);border-top:1px solid rgba(0,229,255,.1);}
+#tts-bar.visible{display:flex;}
+.tts-waves{display:flex;align-items:center;gap:3px;}
+.tts-wave{width:3px;background:var(--accent3);border-radius:2px;animation:waveAnim .8s ease-in-out infinite;}
+.tts-wave:nth-child(1){height:7px;animation-delay:0s}
+.tts-wave:nth-child(2){height:13px;animation-delay:.1s}
+.tts-wave:nth-child(3){height:18px;animation-delay:.2s}
+.tts-wave:nth-child(4){height:13px;animation-delay:.3s}
+.tts-wave:nth-child(5){height:7px;animation-delay:.4s}
+@keyframes waveAnim{0%,100%{transform:scaleY(.5);opacity:.4}50%{transform:scaleY(1);opacity:1}}
+#tts-text{font-size:11px;color:var(--accent3);font-family:'Space Mono',monospace;flex:1;}
+#tts-stop{background:none;border:none;color:var(--accent3);cursor:pointer;font-size:14px;}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
+backdrop-filter:blur(8px);z-index:100;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px;
+width:92%;max-width:420px;animation:modalIn .25s cubic-bezier(.4,0,.2,1);}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal h2{font-size:17px;font-weight:800;margin-bottom:18px;
+background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.form-group{margin-bottom:14px;}
+.form-label{display:block;font-size:10px;color:var(--text2);text-transform:uppercase;
+letter-spacing:1px;margin-bottom:5px;font-family:'Space Mono',monospace;}
+.form-input,.form-textarea,.form-select{width:100%;background:var(--bg3);border:1px solid var(--border);
+border-radius:8px;color:var(--text);font-family:'Syne',sans-serif;font-size:13px;
+padding:9px 11px;outline:none;transition:border-color .2s;}
+.form-input:focus,.form-textarea:focus,.form-select:focus{border-color:var(--accent);}
+.form-textarea{resize:vertical;min-height:70px;line-height:1.5;}
+.modal-btns{display:flex;gap:7px;margin-top:18px;justify-content:flex-end;}
+.btn-cancel{padding:7px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+color:var(--text2);font-family:'Syne',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;}
+.btn-cancel:hover{background:var(--border);color:var(--text);}
+.btn-save{padding:7px 18px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+border:none;border-radius:8px;color:white;font-family:'Syne',sans-serif;
+font-size:13px;font-weight:700;cursor:pointer;transition:opacity .2s;}
+.btn-save:hover{opacity:.9;}
+.btn-save:disabled{opacity:.5;cursor:not-allowed;}
+
+#img-gen-result{margin-top:12px;text-align:center;}
+#img-gen-result img{max-width:100%;border-radius:10px;border:1px solid var(--border);}
+#img-gen-status{font-size:12px;color:var(--text2);font-family:'Space Mono',monospace;margin-top:8px;text-align:center;}
+.img-loading{display:flex;align-items:center;justify-content:center;gap:8px;
+padding:30px;color:var(--text2);font-family:'Space Mono',monospace;font-size:12px;}
+.img-spinner{width:20px;height:20px;border:2px solid var(--border);
+border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#toast{position:fixed;bottom:85px;left:50%;transform:translateX(-50%) translateY(14px);
+background:var(--panel);border:1px solid var(--border);border-radius:10px;
+padding:9px 16px;font-size:12px;color:var(--text);font-family:'Space Mono',monospace;
+opacity:0;transition:all .25s;pointer-events:none;z-index:200;white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:640px){
+#sidebar{position:fixed;top:0;left:0;bottom:0;transform:translateX(-100%);z-index:50;}
+#sidebar.open{transform:translateX(0);}
+#menu-btn{display:flex;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49;}
+.sidebar-overlay.open{display:block;}
+.msg-bubble{max-width:93%;}
+}
+</style>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">CesarIA</div>
+    </div>
+    <button class="new-chat-btn" onclick="newChat()">✦ Nueva conversacion</button>
+  </div>
+  <div class="chats-list" id="chats-list">
+    <div class="chats-empty">Sin conversaciones aun</div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="stats-bar">
+      <div class="stat"><div class="stat-value" id="stat-msgs">0</div><div class="stat-label">Msgs</div></div>
+      <div class="stat"><div class="stat-value" id="stat-chats">0</div><div class="stat-label">Chats</div></div>
+    </div>
+    <button class="settings-btn" onclick="openSettings()">⚙ Configuracion</button>
+  </div>
+</div>
+
+<div id="main">
+  <div id="topbar">
+    <button id="menu-btn" onclick="toggleSidebar()">☰</button>
+    <div class="status-dot"></div>
+    <select class="model-select" id="model-select"></select>
+    <div class="topbar-title" id="topbar-title">CesarIA</div>
+    <span class="img-active-badge" id="img-badge" onclick="clearImageContext()">📷 imagen activa ✕</span>
+    <button class="img-gen-btn" onclick="openImgGen()" title="Generar imagen">🎨</button>
+  </div>
+
+  <div id="messages">
+    <div id="welcome">
+      <div class="welcome-icon">⚡</div>
+      <div class="welcome-title">Hola, Cesar</div>
+      <div class="welcome-sub">Tu asistente personal esta listo. En que trabajamos hoy?</div>
+    </div>
+  </div>
+
+  <div id="tts-bar">
+    <div class="tts-waves">
+      <div class="tts-wave"></div><div class="tts-wave"></div><div class="tts-wave"></div>
+      <div class="tts-wave"></div><div class="tts-wave"></div>
+    </div>
+    <span id="tts-text">Reproduciendo...</span>
+    <button id="tts-stop" onclick="stopTTS()">⏹</button>
+  </div>
+
+  <div id="quick-btns">
+    <button class="quick-btn" onclick="quickMsg('Resume lo mas importante del dia')">📋 Resumen</button>
+    <button class="quick-btn" onclick="quickMsg('Dame ideas creativas para un proyecto')">💡 Ideas</button>
+    <button class="quick-btn" onclick="quickMsg('Ayudame a escribir un mensaje profesional')">✉ Mensaje</button>
+    <button class="quick-btn" onclick="quickMsg('Explica de forma simple: ')">🧠 Explicar</button>
+    <button class="quick-btn" onclick="quickMsg('Escribe codigo para: ')">💻 Codigo</button>
+    <button class="quick-btn" onclick="quickMsg('Que puedes hacer por mi?')">⚡ Capacidades</button>
+  </div>
+
+  <div id="input-area">
+    <div id="img-preview-area"></div>
+    <div class="input-wrapper">
+      <input type="file" id="file-input" accept="image/*" onchange="handleImageSelect(this)">
+      <textarea id="msg-input" placeholder="Escribe tu mensaje..." rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="input-btn" id="img-upload-btn" onclick="document.getElementById('file-input').click()" title="Enviar imagen">📷</button>
+      <button class="input-btn" id="voice-btn" onclick="toggleVoice()" title="Voz">🎤</button>
+      <button class="input-btn" id="send-btn" onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="imggen-modal">
+  <div class="modal">
+    <h2>🎨 Generar Imagen</h2>
+    <div class="form-group">
+      <label class="form-label">Descripcion de la imagen</label>
+      <textarea class="form-textarea" id="imggen-prompt" placeholder="Un leon con alas doradas, hiperrealista..." rows="3"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tamano</label>
+      <select class="form-select" id="imggen-size">
+        <option value="1024x1024">1024x1024 - Cuadrado</option>
+        <option value="1280x720">1280x720 - Paisaje</option>
+        <option value="720x1280">720x1280 - Vertical</option>
+      </select>
+    </div>
+    <div id="img-gen-result"></div>
+    <div id="img-gen-status"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeImgGen()">Cerrar</button>
+      <button class="btn-save" id="imggen-btn" onclick="generateImage()">✨ Generar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal">
+    <h2>⚙ Configuracion</h2>
+    <div class="form-group">
+      <label class="form-label">Tu nombre</label>
+      <input class="form-input" id="cfg-name" placeholder="Cesar">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre del asistente</label>
+      <input class="form-input" id="cfg-assistant" placeholder="CesarIA">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Personalidad / Instrucciones</label>
+      <textarea class="form-textarea" id="cfg-personality" rows="4"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeSettings()">Cancelar</button>
+      <button class="btn-save" onclick="saveSettings()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = 'http://127.0.0.1:8317';
+const KEY = 'test123';
+const H = {'Authorization':`Bearer ${KEY}`,'Content-Type':'application/json'};
+
+let currentSession = null;
+let isStreaming = false;
+let recognition = null;
+let isRecording = false;
+let synth = window.speechSynthesis;
+let pendingImage = null;
+let hasImageContext = false;
+
+async function init() {
+  await loadModels();
+  await loadChats();
+  await loadStats();
+  setupVoice();
+}
+
+async function loadModels() {
+  try {
+    const r = await fetch(`${API}/v1/models`, {headers:H});
+    const data = await r.json();
+    const sel = document.getElementById('model-select');
+    sel.innerHTML = '';
+    const groups = {};
+    data.data.forEach(m => {
+      if (!groups[m.owned_by]) groups[m.owned_by] = [];
+      groups[m.owned_by].push(m.id);
+    });
+    for (const [prov, models] of Object.entries(groups)) {
+      const og = document.createElement('optgroup');
+      og.label = prov.toUpperCase();
+      models.forEach(id => {
+        const o = document.createElement('option');
+        o.value = id;
+        o.textContent = id.length > 30 ? id.slice(0,28)+'...' : id;
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    }
+  } catch(e) {}
+}
+
+async function loadChats() {
+  try {
+    const r = await fetch(`${API}/api/chats`, {headers:H});
+    const chats = await r.json();
+    renderChats(chats);
+  } catch(e) {}
+}
+
+function renderChats(chats) {
+  const list = document.getElementById('chats-list');
+  if (!chats.length) {
+    list.innerHTML = '<div class="chats-empty">Sin conversaciones aun</div>';
+    return;
+  }
+  list.innerHTML = '';
+  chats.forEach(chat => {
+    const div = document.createElement('div');
+    div.className = `chat-item${chat.session_id === currentSession ? ' active' : ''}`;
+    div.dataset.id = chat.session_id;
+    div.innerHTML = `<span class="chat-item-title">${esc(chat.title)}</span>
+      <button class="chat-delete" onclick="deleteChat('${chat.session_id}',event)">✕</button>`;
+    div.onclick = () => loadChat(chat.session_id, chat.title);
+    list.appendChild(div);
+  });
+}
+
+async function loadChat(sessionId, title) {
+  currentSession = sessionId;
+  hasImageContext = false;
+  document.getElementById('img-badge').classList.remove('visible');
+  document.getElementById('topbar-title').textContent = title;
+  document.querySelectorAll('.chat-item').forEach(el =>
+    el.classList.toggle('active', el.dataset.id === sessionId));
+  try {
+    const r = await fetch(`${API}/api/chats/${sessionId}`, {headers:H});
+    const messages = await r.json();
+    document.getElementById('messages').innerHTML = '';
+    messages.forEach(m => appendMessage(m.role, m.content, false));
+    scrollBottom();
+  } catch(e) {}
+  closeSidebar();
+}
+
+function newChat() {
+  currentSession = `chat_${Date.now()}`;
+  hasImageContext = false;
+  document.getElementById('img-badge').classList.remove('visible');
+  document.getElementById('messages').innerHTML = `
+    <div id="welcome">
+      <div class="welcome-icon">⚡</div>
+      <div class="welcome-title">Nueva conversacion</div>
+      <div class="welcome-sub">En que puedo ayudarte?</div>
+    </div>`;
+  document.getElementById('topbar-title').textContent = 'Nueva conversacion';
+  document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+  closeSidebar();
+}
+
+async function deleteChat(sessionId, e) {
+  e.stopPropagation();
+  await fetch(`${API}/api/chats/${sessionId}`, {method:'DELETE', headers:H});
+  if (currentSession === sessionId) {
+    currentSession = null;
+    hasImageContext = false;
+    document.getElementById('img-badge').classList.remove('visible');
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('topbar-title').textContent = 'CesarIA';
+  }
+  await loadChats();
+  await loadStats();
+  showToast('Conversacion eliminada');
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch(`${API}/api/stats`, {headers:H});
+    const d = await r.json();
+    document.getElementById('stat-msgs').textContent = d.total_messages || 0;
+    document.getElementById('stat-chats').textContent = d.total_chats || 0;
+  } catch(e) {}
+}
+
+async function sendMessage(text) {
+  const input = document.getElementById('msg-input');
+  const content = text || input.value.trim();
+  if ((!content && !pendingImage) || isStreaming) return;
+
+  if (!currentSession) currentSession = `chat_${Date.now()}`;
+  document.getElementById('welcome')?.remove();
+  input.value = '';
+  input.style.height = 'auto';
+
+  if (pendingImage) {
+    await sendImageMessage(content || 'Describe esta imagen en detalle');
+    return;
+  }
+
+  appendMessage('user', content);
+  const model = document.getElementById('model-select').value;
+
+  isStreaming = true;
+  document.getElementById('send-btn').disabled = true;
+
+  addTyping();
+
+  try {
+    const bodyData = {
+      model,
+      stream: true,
+      session_id: currentSession,
+      user_text: content,
+      messages: buildHistory()
+    };
+
+    const r = await fetch(`${API}/v1/chat/completions`, {
+      method:'POST', headers:H, body: JSON.stringify(bodyData)
+    });
+
+    removeTyping();
+
+    const aiEl = document.createElement('div');
+    aiEl.className = 'message assistant';
+    const shortModel = model.split('/').pop().slice(0,22);
+    aiEl.innerHTML = `<div class="msg-header"><span class="msg-role">CesarIA</span>
+      <span class="msg-model">${shortModel}</span></div>
+      <div class="msg-bubble" id="stream-bubble"></div>`;
+    document.getElementById('messages').appendChild(aiEl);
+
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let full = '';
+    const bubble = document.getElementById('stream-bubble');
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      const lines = decoder.decode(value).split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const d = line.slice(6);
+        if (d === '[DONE]') break;
+        try {
+          const chunk = JSON.parse(d);
+          const delta = chunk.choices?.[0]?.delta?.content || '';
+          full += delta;
+          bubble.innerHTML = fmt(full);
+        } catch(e) {}
+      }
+      scrollBottom();
+    }
+    bubble.removeAttribute('id');
+    if (!full) bubble.innerHTML = fmt('No pude obtener respuesta. Intenta de nuevo.');
+    if (full && full.length < 250) speakText(full);
+
+  } catch(err) {
+    removeTyping();
+    appendMessage('assistant', 'Error de conexion. Asegurate de que el proxy este corriendo.');
+  }
+
+  isStreaming = false;
+  document.getElementById('send-btn').disabled = false;
+  await loadChats();
+  await loadStats();
+}
+
+async function sendImageMessage(question) {
+  const formData = new FormData();
+  formData.append('image', pendingImage.file);
+  formData.append('question', question);
+  formData.append('session_id', currentSession);
+
+  const previewUrl = pendingImage.previewUrl;
+  clearImagePreview();
+
+  const userEl = document.createElement('div');
+  userEl.className = 'message user';
+  userEl.innerHTML = `<div class="msg-header"><span class="msg-role">Tu</span></div>
+    <div class="msg-bubble">
+      <img src="${previewUrl}" class="msg-image-thumb" alt="imagen enviada">
+      <div style="margin-top:6px;font-size:13px">${esc(question)}</div>
+    </div>`;
+  document.getElementById('messages').appendChild(userEl);
+  scrollBottom();
+
+  isStreaming = true;
+  document.getElementById('send-btn').disabled = true;
+  addTyping();
+
+  try {
+    const r = await fetch(`${API}/api/image/analyze`, {
+      method:'POST',
+      headers:{'Authorization':`Bearer ${KEY}`},
+      body: formData
+    });
+    const data = await r.json();
+    removeTyping();
+
+    if (data.result) {
+      hasImageContext = true;
+      document.getElementById('img-badge').classList.add('visible');
+      document.getElementById('msg-input').placeholder = 'Pregunta mas sobre la imagen...';
+      appendMessage('assistant', data.result, true, data.model);
+    } else {
+      appendMessage('assistant', data.error || 'No se pudo analizar la imagen');
+    }
+  } catch(e) {
+    removeTyping();
+    appendMessage('assistant', 'Error analizando la imagen');
+  }
+
+  isStreaming = false;
+  document.getElementById('send-btn').disabled = false;
+  await loadChats();
+  await loadStats();
+}
+
+function clearImageContext() {
+  hasImageContext = false;
+  document.getElementById('img-badge').classList.remove('visible');
+  document.getElementById('msg-input').placeholder = 'Escribe tu mensaje...';
+  showToast('Contexto de imagen borrado');
+}
+
+function addTyping() {
+  const el = document.createElement('div');
+  el.className = 'message assistant';
+  el.id = 'typing';
+  el.innerHTML = `<div class="msg-header"><span class="msg-role">CesarIA</span></div>
+    <div class="msg-bubble"><div class="typing-indicator">
+      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+    </div></div>`;
+  document.getElementById('messages').appendChild(el);
+  scrollBottom();
+}
+
+function removeTyping() {
+  document.getElementById('typing')?.remove();
+}
+
+function buildHistory() {
+  const msgs = [];
+  document.querySelectorAll('.message').forEach(el => {
+    const role = el.classList.contains('user') ? 'user' : 'assistant';
+    const bubble = el.querySelector('.msg-bubble');
+    if (bubble) {
+      const text = bubble.innerText.trim();
+      if (text) msgs.push({role, content: text});
+    }
+  });
+  return msgs;
+}
+
+function appendMessage(role, content, scroll=true, model=null) {
+  const el = document.createElement('div');
+  el.className = `message ${role}`;
+  const modelLabel = model ? `<span class="msg-model">${model.split('/').pop().slice(0,22)}</span>` : '';
+  el.innerHTML = `<div class="msg-header"><span class="msg-role">${role==='user'?'Tu':'CesarIA'}</span>${modelLabel}</div>
+    <div class="msg-bubble">${fmt(content)}</div>`;
+  document.getElementById('messages').appendChild(el);
+  if (scroll) scrollBottom();
+}
+
+function fmt(text) {
+  if (!text) return '';
+  text = text.replace(/```(\w+)?\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  text = text.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  const parts = text.split('\n\n').filter(p => p.trim());
+  if (parts.length > 1) return parts.map(p => `<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
+  return text.replace(/\n/g,'<br>');
+}
+
+function esc(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function quickMsg(text) { sendMessage(text); }
+function handleKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,110)+'px'; }
+function scrollBottom() { const m=document.getElementById('messages'); m.scrollTop=m.scrollHeight; }
+
+function handleImageSelect(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const previewUrl = URL.createObjectURL(file);
+  pendingImage = {file, previewUrl};
+  document.getElementById('img-preview-area').innerHTML = `
+    <div class="img-preview">
+      <img src="${previewUrl}" alt="preview">
+      <span class="img-preview-name">${file.name}</span>
+      <button class="img-preview-remove" onclick="clearImagePreview()">✕</button>
+    </div>`;
+  document.getElementById('img-upload-btn').classList.add('has-image');
+  document.getElementById('msg-input').placeholder = 'Pregunta sobre la imagen...';
+}
+
+function clearImagePreview() {
+  pendingImage = null;
+  document.getElementById('img-preview-area').innerHTML = '';
+  document.getElementById('file-input').value = '';
+  document.getElementById('img-upload-btn').classList.remove('has-image');
+  if (!hasImageContext) document.getElementById('msg-input').placeholder = 'Escribe tu mensaje...';
+}
+
+function setupVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  recognition = new SR();
+  recognition.lang = 'es-ES';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.onresult = (e) => {
+    const t = Array.from(e.results).map(r=>r[0].transcript).join('');
+    document.getElementById('msg-input').value = t;
+    if (e.results[e.results.length-1].isFinal) { stopVoice(); sendMessage(); }
+  };
+  recognition.onerror = () => stopVoice();
+  recognition.onend = () => stopVoice();
+}
+
+function toggleVoice() { isRecording ? stopVoice() : startVoice(); }
+function startVoice() {
+  if (!recognition) { showToast('Voz no disponible'); return; }
+  recognition.start(); isRecording = true;
+  document.getElementById('voice-btn').classList.add('recording');
+  document.getElementById('voice-btn').textContent = '⏹';
+}
+function stopVoice() {
+  recognition?.stop(); isRecording = false;
+  document.getElementById('voice-btn').classList.remove('recording');
+  document.getElementById('voice-btn').textContent = '🎤';
+}
+
+function speakText(text) {
+  if (!synth) return;
+  stopTTS();
+  const clean = text.replace(/[*`#_\[\]()]/g,'').replace(/\n+/g,'. ');
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.lang = 'es-ES'; utt.rate = 1.0;
+  const bar = document.getElementById('tts-bar');
+  document.getElementById('tts-text').textContent = clean.slice(0,50)+(clean.length>50?'...':'');
+  bar.classList.add('visible');
+  utt.onend = () => bar.classList.remove('visible');
+  synth.speak(utt);
+}
+function stopTTS() { synth?.cancel(); document.getElementById('tts-bar').classList.remove('visible'); }
+
+async function generateImage() {
+  const prompt = document.getElementById('imggen-prompt').value.trim();
+  if (!prompt) { showToast('Escribe una descripcion'); return; }
+  const size = document.getElementById('imggen-size').value;
+  const btn = document.getElementById('imggen-btn');
+  const status = document.getElementById('img-gen-status');
+  const result = document.getElementById('img-gen-result');
+  btn.disabled = true;
+  btn.textContent = 'Generando...';
+  status.textContent = 'Esto puede tardar 15-30 segundos...';
+  result.innerHTML = '<div class="img-loading"><div class="img-spinner"></div> Generando imagen con Flux AI...</div>';
+
+  try {
+    const r = await fetch(`${API}/api/image/generate`, {
+      method:'POST', headers:H,
+      body: JSON.stringify({prompt, size})
+    });
+    const data = await r.json();
+    if (data.data && data.data[0]) {
+      const imgUrl = data.data[0].url;
+      status.textContent = 'Cargando imagen...';
+      result.innerHTML = '<div class="img-loading"><div class="img-spinner"></div> Cargando...</div>';
+      const img = new Image();
+      img.onload = () => {
+        result.innerHTML = `<img src="${imgUrl}" alt="Imagen generada" style="max-width:100%;border-radius:10px;border:1px solid var(--border)">
+          <br><a href="${imgUrl}" target="_blank"
+          style="color:var(--accent);font-size:11px;font-family:Space Mono,monospace;margin-top:6px;display:inline-block">
+          ↗ Abrir imagen completa</a>`;
+        status.textContent = '✓ Imagen lista!';
+        if (currentSession) {
+          appendMessage('assistant',
+            `Imagen generada: "${prompt}"<br><img src="${imgUrl}" style="max-width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--border)">`);
+        }
+      };
+      img.onerror = () => {
+        result.innerHTML = `<a href="${imgUrl}" target="_blank"
+          style="color:var(--accent);font-family:Space Mono,monospace;font-size:12px;display:block;padding:16px;text-align:center;border:1px solid var(--border);border-radius:8px">
+          ↗ Imagen generada — toca aqui para verla</a>`;
+        status.textContent = 'La imagen no carga aqui, usa el enlace de arriba.';
+      };
+      img.src = imgUrl;
+    } else {
+      result.innerHTML = '';
+      status.textContent = 'Error: ' + (data.error || 'No se pudo generar');
+    }
+  } catch(e) {
+    result.innerHTML = '';
+    status.textContent = 'Error conectando al servidor';
+  }
+  btn.disabled = false;
+  btn.textContent = '✨ Generar';
+}
+
+function openImgGen() { document.getElementById('imggen-modal').classList.add('open'); }
+function closeImgGen() { document.getElementById('imggen-modal').classList.remove('open'); }
+
+async function openSettings() {
+  try {
+    const r = await fetch(`${API}/api/profile`, {headers:H});
+    const p = await r.json();
+    document.getElementById('cfg-name').value = p.name || 'Cesar';
+    document.getElementById('cfg-assistant').value = p.assistant_name || 'CesarIA';
+    document.getElementById('cfg-personality').value = p.personality || '';
+  } catch(e) {}
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+async function saveSettings() {
+  const data = {
+    name: document.getElementById('cfg-name').value,
+    assistant_name: document.getElementById('cfg-assistant').value,
+    personality: document.getElementById('cfg-personality').value
+  };
+  try {
+    await fetch(`${API}/api/profile`, {method:'POST', headers:H, body:JSON.stringify(data)});
+    showToast('Configuracion guardada');
+    closeSettings();
+  } catch(e) { showToast('Error guardando'); }
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+init();
+</script>
+</body>
+</html>
