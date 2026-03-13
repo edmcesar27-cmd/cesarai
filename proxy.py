@@ -39,54 +39,48 @@ else:
 image_sessions = {}
 
 PROVIDERS = {
+    # ✅ GROQ — Ultra rápido, 100% gratis, sin tarjeta
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
         "api_key":  os.environ.get("GROQ_API_KEY", ""),
         "models": [
             "llama-3.3-70b-versatile",
             "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
             "gemma2-9b-it"
         ],
         "type": "openai"
     },
-    "openrouter": {
-        "base_url": "https://openrouter.ai/api/v1",
-        "api_key":  os.environ.get("OPENROUTER_API_KEY", ""),
-        "models": [
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "meta-llama/llama-3.1-8b-instruct:free",
-            "deepseek/deepseek-chat:free",
-            "deepseek/deepseek-r1:free",
-            "google/gemma-3-27b-it:free",
-            "mistralai/mistral-7b-instruct:free",
-            "qwen/qwen2.5-72b-instruct:free",
-            "qwen/qwen3-8b:free",
-            "microsoft/phi-4-reasoning:free",
-            "nvidia/llama-3.1-nemotron-70b-instruct:free",
-            "google/gemini-2.0-flash-exp:free"
-        ],
-        "type": "openai"
-    },
+    # ✅ GEMINI — Google AI Studio, 500 req/día gratis, sin tarjeta
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
         "api_key":  os.environ.get("GEMINI_API_KEY", ""),
         "models": [
-            "gemini-2.5-flash-preview-04-17",
             "gemini-2.0-flash",
-            "gemini-2.0-flash-lite"
+            "gemini-2.0-flash-lite",
+            "gemini-2.5-flash"
+        ],
+        "type": "openai"
+    },
+    # ✅ MISTRAL — Free tier (solo necesita número de teléfono, sin tarjeta)
+    # Registrate en: console.mistral.ai -> Experiment plan
+    "mistral": {
+        "base_url": "https://api.mistral.ai/v1",
+        "api_key":  os.environ.get("MISTRAL_API_KEY", ""),
+        "models": [
+            "mistral-small-latest",
+            "mistral-nemo",
+            "open-mistral-7b"
         ],
         "type": "openai"
     }
 }
 
 VISION_PROVIDERS = [
-    ("groq",        "llama-3.2-11b-vision-preview"),
-    ("gemini",      "gemini-2.5-flash-preview-04-17"),
-    ("openrouter",  "google/gemini-2.0-flash-exp:free"),
+    ("groq",    "llama-3.2-11b-vision-preview"),
+    ("gemini",  "gemini-2.0-flash"),
 ]
 
-FALLBACK_ORDER = ["groq", "gemini", "openrouter"]
+FALLBACK_ORDER = ["groq", "gemini", "mistral"]
 rate_data      = defaultdict(list)
 RATE_LIMIT     = 60
 
@@ -269,9 +263,6 @@ def get_provider(model):
 
 def build_headers(provider_name, provider):
     h = {"Authorization": f"Bearer {provider['api_key']}", "Content-Type": "application/json"}
-    if provider_name == "openrouter":
-        h["HTTP-Referer"] = "https://cesarai.app"
-        h["X-Title"]      = "CesarIA"
     return h
 
 def call_provider_sync(provider_name, provider, body):
@@ -436,7 +427,7 @@ def chat():
     if user_text and session_id in image_sessions:
         save_message(session_id, "user", user_text, body.get("model"), user_id)
         body["messages"] = build_messages_with_image(session_id, user_text, system_prompt)
-        body["model"]    = "gemini-2.5-flash-preview-04-17"
+        body["model"]    = "gemini-2.0-flash"
     else:
         messages  = body.get("messages", [])
         user_msgs = [m for m in messages if m["role"] == "user"]
@@ -485,7 +476,7 @@ def chat():
                         if fb_name == provider_name:
                             continue
                         fb         = PROVIDERS[fb_name]
-                        fb_body    = {**body, "model": fb["models"][0]}
+                        fb_body    = {**body, "model": fb["models"][0], "stream": False}
                         fb_headers = build_headers(fb_name, fb)
                         try:
                             fb_resp = httpx.post(f"{fb['base_url']}/chat/completions",
