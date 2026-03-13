@@ -38,6 +38,18 @@ else:
 # ── PROVIDERS ─────────────────────────────────────────────────────────────────
 image_sessions = {}
 
+# Motores de imagen disponibles (servidor descarga → base64, sin CORS)
+IMAGE_ENGINES = {
+    # ── Pollinations (sin key, siempre disponible) ─────────────────────────
+    "flux":         {"provider": "pollinations", "model": "flux",         "label": "FLUX Pro",        "key": False},
+    "flux-schnell": {"provider": "pollinations", "model": "flux-schnell", "label": "FLUX Schnell ⚡",  "key": False},
+    "flux-realism": {"provider": "pollinations", "model": "flux-realism", "label": "FLUX Realism 📷", "key": False},
+    "turbo":        {"provider": "pollinations", "model": "turbo",        "label": "Turbo (SD XL)",   "key": False},
+    # ── Hugging Face (key gratis en huggingface.co) ────────────────────────
+    "hf-flux":      {"provider": "huggingface",  "model": "black-forest-labs/FLUX.1-schnell", "label": "HF FLUX Schnell", "key": True},
+    "hf-sd35":      {"provider": "huggingface",  "model": "stabilityai/stable-diffusion-3.5-large", "label": "HF SD 3.5 Large", "key": True},
+}
+
 PROVIDERS = {
     # ✅ GROQ — Ultra rápido, 100% gratis, sin tarjeta
     "groq": {
@@ -515,10 +527,23 @@ def chat():
 
 # ── IMAGE ─────────────────────────────────────────────────────────────────────
 
+
+@app.route("/api/image/engines", methods=["GET"])
+def list_engines():
+    if not request.headers.get("Authorization") == f"Bearer {API_KEY}":
+        return jsonify({"error": "Unauthorized"}), 401
+    hf_key = bool(os.environ.get("HF_API_KEY", ""))
+    engines = []
+    for key, eng in IMAGE_ENGINES.items():
+        if eng["key"] and not hf_key:
+            continue  # no mostrar HF si no hay key
+        engines.append({"id": key, "label": eng["label"], "provider": eng["provider"]})
+    return jsonify(engines)
+
 @app.route("/api/image/proxy", methods=["GET"])
 def image_proxy():
     url = request.args.get("url", "")
-    if not url.startswith("https://image.pollinations.ai"):
+    if not (url.startswith("https://image.pollinations.ai") or url.startswith("https://gen.pollinations.ai")):
         return jsonify({"error": "URL no permitida"}), 403
     try:
         resp = httpx.get(url, timeout=60, follow_redirects=True)
@@ -530,76 +555,83 @@ def image_proxy():
 def generate_image():
     if not request.headers.get("Authorization") == f"Bearer {API_KEY}":
         return jsonify({"error": "Unauthorized"}), 401
+
     body        = request.json
     prompt      = (body.get("prompt") or "").strip()
     style       = body.get("style", "")
-    aspect      = body.get("aspect", "1:1")   # 1:1 | 16:9 | 9:16 | 4:3
-    quality     = body.get("quality", "normal") # normal | hd
+    aspect      = body.get("aspect", "1:1")
+    quality     = body.get("quality", "normal")
+    engine_key  = body.get("engine", "flux-schnell")
 
     if not prompt:
         return jsonify({"error": "Prompt vacío"}), 400
 
-    # Enriquecer prompt con estilo si se especificó
     full_prompt = f"{prompt}, {style}" if style else prompt
     if quality == "hd":
-        full_prompt += ", ultra detailed, high quality, 8k"
+        full_prompt += ", ultra detailed, high quality, 8k, sharp"
 
-    # ── 1) Intentar Gemini imagen (nativo, 500/día gratis) ─────────────────
-    gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    if gemini_key:
-        try:
-            gemini_url = (
-                "https://generativelanguage.googleapis.com/v1beta/models/"
-                "gemini-2.0-flash-exp:generateContent"
-            )
-            gem_body = {
-                "contents": [{"parts": [{"text": f"Generate an image: {full_prompt}"}]}],
-                "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]}
-            }
-            gem_resp = httpx.post(
-                gemini_url,
-                json=gem_body,
-                headers={"Content-Type": "application/json"},
-                params={"key": gemini_key},
-                timeout=60
-            )
-            if gem_resp.status_code == 200:
-                gdata = gem_resp.json()
-                parts = gdata.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-                for part in parts:
-                    if part.get("inlineData", {}).get("mimeType", "").startswith("image/"):
-                        img_b64  = part["inlineData"]["data"]
-                        mime     = part["inlineData"]["mimeType"]
-                        data_url = f"data:{mime};base64,{img_b64}"
-                        print(f"[GEMINI IMG] ✅ imagen generada con gemini-2.0-flash-exp")
-                        return jsonify({
-                            "data":     [{"url": data_url, "b64": img_b64}],
-                            "prompt":   full_prompt,
-                            "provider": "gemini",
-                            "model":    "gemini-2.0-flash-exp"
-                        })
-            else:
-                print(f"[GEMINI IMG] ❌ HTTP {gem_resp.status_code} — {gem_resp.text[:200]}")
-        except Exception as e:
-            print(f"[GEMINI IMG] ❌ excepción: {e}")
-
-    # ── 2) Fallback: Pollinations (sin key, siempre disponible) ───────────
-    import urllib.parse
-    aspect_map  = {"1:1": (1024,1024), "16:9": (1280,720), "9:16": (720,1280), "4:3": (1024,768)}
+    engine = IMAGE_ENGINES.get(engine_key, IMAGE_ENGINES["flux-schnell"])
+    aspect_map = {"1:1":(1024,1024), "16:9":(1280,720), "9:16":(720,1280), "4:3":(1024,768)}
     width, height = aspect_map.get(aspect, (1024, 1024))
-    seed        = int(time.time()) % 99999
-    model_param = "flux" if quality == "hd" else "turbo"
-    img_url     = (
-        f"https://image.pollinations.ai/prompt/{urllib.parse.quote(full_prompt)}"
-        f"?width={width}&height={height}&seed={seed}&nologo=true&model={model_param}"
-    )
-    print(f"[POLLINATIONS] fallback → {img_url}")
-    return jsonify({
-        "data":     [{"url": img_url}],
-        "prompt":   full_prompt,
-        "provider": "pollinations",
-        "model":    model_param
-    })
+
+    # ── POLLINATIONS ─────────────────────────────────────────────────────────
+    if engine["provider"] == "pollinations":
+        import urllib.parse
+        seed     = int(time.time()) % 99999
+        poll_url = (
+            f"https://image.pollinations.ai/prompt/{urllib.parse.quote(full_prompt)}"
+            f"?width={width}&height={height}&seed={seed}&nologo=true&model={engine['model']}"
+        )
+        print(f"[IMG] Pollinations/{engine['model']} → descargando...")
+        try:
+            img_resp = httpx.get(poll_url, timeout=90, follow_redirects=True)
+            if img_resp.status_code == 200:
+                mime     = img_resp.headers.get("content-type", "image/jpeg")
+                img_b64  = base64.b64encode(img_resp.content).decode()
+                print(f"[IMG] ✅ Pollinations {engine['model']} — {len(img_resp.content)//1024}KB")
+                return jsonify({
+                    "data":     [{"url": f"data:{mime};base64,{img_b64}", "b64": img_b64}],
+                    "prompt":   full_prompt,
+                    "provider": "pollinations",
+                    "label":    engine["label"],
+                    "model":    engine["model"]
+                })
+            print(f"[IMG] ❌ Pollinations HTTP {img_resp.status_code}")
+        except Exception as e:
+            print(f"[IMG] ❌ Pollinations excepción: {e}")
+
+    # ── HUGGING FACE ─────────────────────────────────────────────────────────
+    elif engine["provider"] == "huggingface":
+        hf_key = os.environ.get("HF_API_KEY", "")
+        if not hf_key:
+            return jsonify({"error": "HF_API_KEY no configurada en Railway"}), 400
+        hf_url = f"https://api-inference.huggingface.co/models/{engine['model']}"
+        hf_body = {"inputs": full_prompt, "parameters": {"width": width, "height": height}}
+        print(f"[IMG] HuggingFace/{engine['model']} → generando...")
+        try:
+            resp = httpx.post(hf_url,
+                json=hf_body,
+                headers={"Authorization": f"Bearer {hf_key}", "Content-Type": "application/json"},
+                timeout=120)
+            if resp.status_code == 200 and resp.headers.get("content-type","").startswith("image/"):
+                mime    = resp.headers.get("content-type", "image/jpeg")
+                img_b64 = base64.b64encode(resp.content).decode()
+                print(f"[IMG] ✅ HuggingFace {engine['model']} — {len(resp.content)//1024}KB")
+                return jsonify({
+                    "data":     [{"url": f"data:{mime};base64,{img_b64}", "b64": img_b64}],
+                    "prompt":   full_prompt,
+                    "provider": "huggingface",
+                    "label":    engine["label"],
+                    "model":    engine["model"]
+                })
+            err_text = resp.text[:200]
+            print(f"[IMG] ❌ HuggingFace HTTP {resp.status_code} — {err_text}")
+            return jsonify({"error": f"HuggingFace: {err_text}"}), 502
+        except Exception as e:
+            print(f"[IMG] ❌ HuggingFace excepción: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    return jsonify({"error": "Motor no disponible"}), 500
 
 @app.route("/api/image/analyze", methods=["POST"])
 def analyze_image():

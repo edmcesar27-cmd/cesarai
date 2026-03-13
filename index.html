@@ -448,9 +448,15 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
     </div>
 
     <div class="form-group">
-      <label class="form-label">Motor</label>
-      <div id="provider-badge" style="font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;margin-top:2px;">
-        Intenta Gemini AI → Pollinations (fallback)
+      <label class="form-label">Motor de generación</label>
+      <select class="form-select" id="imggen-engine">
+        <option value="flux-schnell">⚡ FLUX Schnell (rápido)</option>
+        <option value="flux">✨ FLUX Pro (mejor calidad)</option>
+        <option value="flux-realism">📷 FLUX Realism (foto real)</option>
+        <option value="turbo">🚀 Turbo SD XL</option>
+      </select>
+      <div id="provider-badge" style="font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;margin-top:4px;">
+        Todos sin key · Hugging Face carga si configuras HF_API_KEY
       </div>
     </div>
 
@@ -917,7 +923,24 @@ function clearImagePreview() {
 
 // ── IMAGE GEN ─────────────────────────────────────────────────────────────────
 
-function openImgGen() { document.getElementById('imggen-modal').classList.add('open'); }
+function openImgGen() {
+  document.getElementById('imggen-modal').classList.add('open');
+  loadImageEngines();
+}
+
+async function loadImageEngines() {
+  try {
+    const r = await fetch(`${API}/api/image/engines`, {headers: H});
+    const engines = await r.json();
+    const sel = document.getElementById('imggen-engine');
+    sel.innerHTML = '';
+    engines.forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.id; o.textContent = e.label;
+      sel.appendChild(o);
+    });
+  } catch(e) { /* usa opciones por defecto */ }
+}
 function closeImgGen() { document.getElementById('imggen-modal').classList.remove('open'); }
 
 // ── STYLE CHIPS ──────────────────────────────────────────────────────────────
@@ -944,21 +967,23 @@ async function generateImage() {
 
   btn.disabled   = true;
   btn.textContent = 'Generando...';
-  status.textContent = '⏳ Procesando con Gemini AI...';
+  const engineLabel = document.getElementById('imggen-engine').options[document.getElementById('imggen-engine').selectedIndex].text;
+  status.textContent = `⏳ Generando con ${engineLabel}...`;
   result.innerHTML = `<div class="img-loading"><div class="img-spinner"></div> Generando imagen...</div>`;
 
   try {
+    const engine = document.getElementById('imggen-engine').value;
     const r = await fetch(`${API}/api/image/generate`, {
       method: 'POST', headers: H,
-      body: JSON.stringify({ prompt, style: selectedStyle, aspect, quality })
+      body: JSON.stringify({ prompt, style: selectedStyle, aspect, quality, engine })
     });
     const data = await r.json();
 
     if (data.data && data.data[0]) {
       const item = data.data[0];
-      const providerLabel = data.provider === 'gemini'
-        ? '⚡ Gemini AI' : '🌐 Pollinations';
-      badge.textContent = `Generado con ${providerLabel} · ${data.model || ''}`;
+      const providerLabel = data.provider === 'huggingface'
+        ? '🤗 Hugging Face' : '🌐 Pollinations';
+      badge.textContent = `✅ ${data.label || providerLabel} · ${data.provider}`;
 
       // Si es base64 (Gemini), mostrar directo. Si es URL (Pollinations), cargar.
       if (item.b64) {
