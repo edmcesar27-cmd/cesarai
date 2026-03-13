@@ -318,6 +318,53 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
   white-space:nowrap;}
 .style-chip.active{background:rgba(124,106,247,.2);border-color:var(--accent);color:var(--accent);}
 .style-chip:hover{border-color:var(--accent);color:var(--text);}
+
+/* ── DOC DOWNLOAD CARD ── */
+.doc-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;
+  padding:12px 16px;margin-top:10px;display:flex;align-items:center;gap:12px;
+  animation:msgIn .3s ease;}
+.doc-card-icon{font-size:28px;flex-shrink:0;}
+.doc-card-info{flex:1;min-width:0;}
+.doc-card-name{font-size:13px;font-weight:700;color:var(--text);font-family:'Space Mono',monospace;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.doc-card-meta{font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;margin-top:2px;}
+.doc-card-btns{display:flex;gap:6px;flex-shrink:0;}
+.doc-dl-btn{padding:6px 12px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border:none;border-radius:8px;color:white;font-family:'Space Mono',monospace;font-size:11px;
+  cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:4px;transition:opacity .2s;}
+.doc-dl-btn:hover{opacity:.85;}
+.doc-preview-btn{padding:6px 10px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:8px;color:var(--text2);font-family:'Space Mono',monospace;font-size:11px;
+  cursor:pointer;transition:all .2s;}
+.doc-preview-btn:hover{border-color:var(--accent3);color:var(--accent3);}
+
+/* ── SLIDE PREVIEW MODAL ── */
+#slide-preview-modal .modal{max-width:860px;width:96%;}
+.slides-viewer{position:relative;margin:10px 0;}
+.slide-img-wrap{width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;
+  border:1px solid var(--border);background:var(--bg);}
+.slide-img-wrap img{width:100%;height:100%;object-fit:contain;display:block;}
+.slide-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px;}
+.slide-nav-btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+  color:var(--text2);font-size:18px;padding:6px 14px;cursor:pointer;transition:all .2s;}
+.slide-nav-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+.slide-nav-btn:disabled{opacity:.3;cursor:not-allowed;}
+.slide-counter{font-size:12px;color:var(--text2);font-family:'Space Mono',monospace;min-width:60px;text-align:center;}
+.slide-thumbnails{display:flex;gap:6px;overflow-x:auto;padding:8px 0;margin-top:6px;}
+.slide-thumbnails::-webkit-scrollbar{height:3px;}
+.slide-thumbnails::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.slide-thumb{flex-shrink:0;width:110px;aspect-ratio:16/9;border-radius:6px;overflow:hidden;
+  border:2px solid transparent;cursor:pointer;transition:border-color .2s;}
+.slide-thumb.active{border-color:var(--accent);}
+.slide-thumb img{width:100%;height:100%;object-fit:cover;}
+
+/* ── DOC GENERATING INDICATOR ── */
+.doc-generating{display:flex;align-items:center;gap:8px;padding:10px 14px;
+  background:rgba(124,106,247,.06);border:1px solid rgba(124,106,247,.2);
+  border-radius:10px;margin-top:8px;font-size:12px;color:var(--accent);
+  font-family:'Space Mono',monospace;}
+.doc-gen-spinner{width:14px;height:14px;border:2px solid rgba(124,106,247,.3);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -588,6 +635,28 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeSettings()">Cancelar</button>
       <button class="btn-save" onclick="saveSettings()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SLIDE PREVIEW MODAL ── -->
+<div class="modal-overlay" id="slide-preview-modal">
+  <div class="modal">
+    <h2>🎨 Preview de Presentación</h2>
+    <div class="slides-viewer">
+      <div class="slide-img-wrap" id="slide-main-img">
+        <img id="slide-current-img" src="" alt="Slide">
+      </div>
+      <div class="slide-nav">
+        <button class="slide-nav-btn" id="slide-prev" onclick="slideNav(-1)">◀</button>
+        <span class="slide-counter" id="slide-counter">1 / 1</span>
+        <button class="slide-nav-btn" id="slide-next" onclick="slideNav(1)">▶</button>
+      </div>
+      <div class="slide-thumbnails" id="slide-thumbs"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeSlidePreview()">Cerrar</button>
+      <a class="doc-dl-btn" id="slide-download-btn" href="#" download>⬇ Descargar PPTX</a>
     </div>
   </div>
 </div>
@@ -1506,6 +1575,238 @@ function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── DOCUMENT GENERATION ───────────────────────────────────────────────────────
+
+let currentSlideImages = [];
+let currentSlideIdx    = 0;
+let currentDocB64      = null;
+let currentDocFilename = null;
+let currentDocMime     = null;
+
+const DOC_ICONS = {
+  docx:'📄', xlsx:'📊', pdf:'📕', pptx:'🎨',
+  py:'🐍', js:'📜', ts:'📘', jsx:'⚛️', tsx:'⚛️',
+  html:'🌐', css:'🎨', json:'📋', sql:'🗃️', sh:'⚙️',
+  yaml:'⚙️', xml:'📋', java:'☕', cpp:'⚙️', c:'⚙️',
+  go:'🐹', rs:'🦀', php:'🐘', rb:'💎', swift:'🍎',
+  md:'📝', csv:'📊', txt:'📄',
+};
+
+async function checkAndGenerateDoc(userMessage, aiResponse) {
+  /* 1. Detectar si el mensaje pide un documento */
+  try {
+    const r = await fetch(`${API}/api/docs/detect`, {
+      method: 'POST', headers: H,
+      body: JSON.stringify({message: userMessage})
+    });
+    const det = await r.json();
+    if (!det.type) return;  // no es un doc
+
+    /* 2. Mostrar indicador "Generando archivo..." */
+    const genEl = document.createElement('div');
+    genEl.className = 'doc-generating';
+    genEl.id = 'doc-gen-indicator';
+    genEl.innerHTML = `<div class="doc-gen-spinner"></div> Generando ${det.filename}...`;
+    document.getElementById('messages').appendChild(genEl);
+    scrollBottom();
+
+    /* 3. Generar el archivo */
+    const gr = await fetch(`${API}/api/docs/generate`, {
+      method: 'POST', headers: H,
+      body: JSON.stringify({
+        type: det.type, filename: det.filename,
+        content: aiResponse, user_request: userMessage
+      })
+    });
+    const gdata = await gr.json();
+    document.getElementById('doc-gen-indicator')?.remove();
+
+    if (!gr.ok || !gdata.ok) {
+      showToast('⚠️ No se pudo generar el archivo: ' + (gdata.error || ''));
+      return;
+    }
+
+    /* 4. Guardar datos globales */
+    currentDocB64      = gdata.file_b64;
+    currentDocFilename = gdata.filename;
+    currentDocMime     = gdata.mime;
+
+    /* 5. Renderizar tarjeta de descarga en el chat */
+    const icon = DOC_ICONS[det.type] || '📎';
+    const dataUrl = `data:${gdata.mime};base64,${gdata.file_b64}`;
+
+    const card = document.createElement('div');
+    card.className = 'doc-card';
+
+    let previewBtn = '';
+    if (det.type === 'pptx' && gdata.preview_images && gdata.preview_images.length > 0) {
+      currentSlideImages = gdata.preview_images;
+      previewBtn = `<button class="doc-preview-btn" onclick="openSlidePreview()">👁 Preview</button>`;
+    }
+
+    card.innerHTML = `
+      <span class="doc-card-icon">${icon}</span>
+      <div class="doc-card-info">
+        <div class="doc-card-name">${esc(gdata.filename)}</div>
+        <div class="doc-card-meta">${gdata.size_kb} KB · ${det.type.toUpperCase()}</div>
+      </div>
+      <div class="doc-card-btns">
+        ${previewBtn}
+        <a class="doc-dl-btn" href="${dataUrl}" download="${esc(gdata.filename)}">⬇ Descargar</a>
+      </div>`;
+    document.getElementById('messages').appendChild(card);
+    scrollBottom();
+    showToast(`✅ ${gdata.filename} listo para descargar`);
+
+  } catch(e) {
+    document.getElementById('doc-gen-indicator')?.remove();
+    console.error('[DOC]', e);
+  }
+}
+
+/* ── Slide preview ── */
+function openSlidePreview() {
+  if (!currentSlideImages.length) return;
+  currentSlideIdx = 0;
+  renderSlide(0);
+  buildThumbs();
+  // Actualizar botón de descarga
+  if (currentDocB64) {
+    const btn = document.getElementById('slide-download-btn');
+    btn.href     = `data:${currentDocMime};base64,${currentDocB64}`;
+    btn.download = currentDocFilename;
+  }
+  document.getElementById('slide-preview-modal').classList.add('open');
+}
+
+function closeSlidePreview() {
+  document.getElementById('slide-preview-modal').classList.remove('open');
+}
+
+function renderSlide(idx) {
+  const img = document.getElementById('slide-current-img');
+  img.src = currentSlideImages[idx];
+  document.getElementById('slide-counter').textContent =
+    `${idx + 1} / ${currentSlideImages.length}`;
+  document.getElementById('slide-prev').disabled = idx === 0;
+  document.getElementById('slide-next').disabled = idx === currentSlideImages.length - 1;
+  document.querySelectorAll('.slide-thumb').forEach((el, i) =>
+    el.classList.toggle('active', i === idx));
+  currentSlideIdx = idx;
+}
+
+function slideNav(dir) {
+  const next = currentSlideIdx + dir;
+  if (next >= 0 && next < currentSlideImages.length) renderSlide(next);
+}
+
+function buildThumbs() {
+  const wrap = document.getElementById('slide-thumbs');
+  wrap.innerHTML = '';
+  currentSlideImages.forEach((src, i) => {
+    const d = document.createElement('div');
+    d.className = `slide-thumb${i === 0 ? ' active' : ''}`;
+    d.onclick = () => renderSlide(i);
+    d.innerHTML = `<img src="${src}" alt="Slide ${i+1}">`;
+    wrap.appendChild(d);
+  });
+}
+
+/* ── Patch sendMessage para inyectar system prompt de doc y generar después ── */
+const _origSendMsg = sendMessage;
+async function sendMessage(text) {
+  const input   = document.getElementById('msg-input');
+  const content = text || input.value.trim();
+  if (!content || isStreaming) return;
+
+  // Pre-detectar tipo de doc para inyectar system prompt
+  let docInfo = null;
+  let docSystemPrompt = '';
+  try {
+    const dr = await fetch(`${API}/api/docs/detect`, {
+      method:'POST', headers:H, body: JSON.stringify({message: content})
+    });
+    docInfo = await dr.json();
+    if (docInfo && docInfo.type) {
+      const spr = await fetch(`${API}/api/docs/system-prompt?type=${docInfo.type}`, {headers:H});
+      const spd = await spr.json();
+      docSystemPrompt = spd.prompt || '';
+    }
+  } catch(e) {}
+
+  // Llamar al sendMessage original pero con contexto de doc si aplica
+  // Inyectamos el docSystemPrompt como web_context adicional
+  if (docSystemPrompt) {
+    // Temporarily override the web_context injection point
+    window._docSystemPrompt = docSystemPrompt;
+  }
+
+  await _origSendMsg.call(this, text);
+  window._docSystemPrompt = null;
+
+  // Después del stream, generar el archivo
+  if (docInfo && docInfo.type) {
+    setTimeout(async () => {
+      const bubbles = document.querySelectorAll('.message.assistant .msg-bubble');
+      if (!bubbles.length) return;
+      const lastBubble = bubbles[bubbles.length - 1];
+      const aiText = lastBubble.innerText || '';
+      if (aiText && aiText.length > 20) {
+        currentDocB64 = null; currentDocFilename = null; currentDocMime = null;
+        currentSlideImages = [];
+        await _doGenerateDoc(content, aiText, docInfo);
+      }
+    }, 600);
+  }
+}
+
+async function _doGenerateDoc(userMessage, aiResponse, docInfo) {
+  const genEl = document.createElement('div');
+  genEl.className = 'doc-generating'; genEl.id = 'doc-gen-indicator';
+  const icon = DOC_ICONS[docInfo.type] || '📎';
+  genEl.innerHTML = `<div class="doc-gen-spinner"></div> ${icon} Generando ${docInfo.filename}...`;
+  document.getElementById('messages').appendChild(genEl);
+  scrollBottom();
+  try {
+    const gr = await fetch(`${API}/api/docs/generate`, {
+      method:'POST', headers:H,
+      body: JSON.stringify({
+        type: docInfo.type, filename: docInfo.filename,
+        content: aiResponse, user_request: userMessage
+      })
+    });
+    const gdata = await gr.json();
+    document.getElementById('doc-gen-indicator')?.remove();
+    if (!gr.ok || !gdata.ok) { showToast('⚠️ ' + (gdata.error || 'Error generando')); return; }
+
+    currentDocB64 = gdata.file_b64; currentDocFilename = gdata.filename; currentDocMime = gdata.mime;
+    const dataUrl = `data:${gdata.mime};base64,${gdata.file_b64}`;
+    const card = document.createElement('div'); card.className = 'doc-card';
+
+    let previewBtn = '';
+    if (docInfo.type === 'pptx' && gdata.preview_images && gdata.preview_images.length > 0) {
+      currentSlideImages = gdata.preview_images;
+      previewBtn = `<button class="doc-preview-btn" onclick="openSlidePreview()">👁 Preview</button>`;
+    }
+    card.innerHTML = `
+      <span class="doc-card-icon">${icon}</span>
+      <div class="doc-card-info">
+        <div class="doc-card-name">${esc(gdata.filename)}</div>
+        <div class="doc-card-meta">${gdata.size_kb} KB · ${docInfo.type.toUpperCase()}</div>
+      </div>
+      <div class="doc-card-btns">
+        ${previewBtn}
+        <a class="doc-dl-btn" href="${dataUrl}" download="${esc(gdata.filename)}">⬇ Descargar</a>
+      </div>`;
+    document.getElementById('messages').appendChild(card);
+    scrollBottom();
+    showToast(`✅ ${gdata.filename} listo`);
+  } catch(e) {
+    document.getElementById('doc-gen-indicator')?.remove();
+    console.error('[DOC]', e);
+  }
 }
 
 // ── START ─────────────────────────────────────────────────────────────────────

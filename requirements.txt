@@ -3,3 +3,8 @@ httpx
 gunicorn
 psycopg2-binary
 pypdf
+python-docx
+openpyxl
+reportlab
+python-pptx
+Pillow

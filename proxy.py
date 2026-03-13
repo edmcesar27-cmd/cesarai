@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, Response, stream_with_context, session
+from flask import Flask, request, jsonify, Response, stream_with_context, session, send_file
 import httpx
 import sqlite3
 import json
@@ -11,6 +11,15 @@ import zipfile
 import io
 import mimetypes
 from collections import defaultdict
+
+# ── Doc generator (DOCX, PDF, XLSX, PPTX, código) ─────────────────────────────
+try:
+    import doc_generator as docgen
+    DOC_GEN_AVAILABLE = True
+    print("[DOC] ✅ doc_generator cargado")
+except ImportError as e:
+    DOC_GEN_AVAILABLE = False
+    print(f"[DOC] ⚠️  doc_generator no disponible: {e}")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
@@ -1044,6 +1053,125 @@ def get_stats():
     total_chats = c.fetchone()[0]
     conn.close()
     return jsonify({"total_messages": total_msgs, "total_chats": total_chats})
+
+# ── DOCUMENT GENERATION ───────────────────────────────────────────────────────
+
+@app.route("/api/docs/detect", methods=["POST"])
+def detect_doc():
+    """
+    Detecta si el mensaje del usuario pide generar un documento.
+    Devuelve {type, filename} o {type: null}.
+    """
+    if not request.headers.get("Authorization") == f"Bearer {API_KEY}":
+        return jsonify({"error": "Unauthorized"}), 401
+    if not DOC_GEN_AVAILABLE:
+        return jsonify({"type": None})
+    data    = request.json or {}
+    msg     = data.get("message", "")
+    result  = docgen.detect_doc_type(msg)
+    return jsonify(result or {"type": None})
+
+
+@app.route("/api/docs/generate", methods=["POST"])
+def generate_doc():
+    """
+    Genera un archivo (DOCX, PDF, XLSX, PPTX, código, etc.) a partir
+    del contenido de la respuesta del modelo.
+    Body JSON: {type, filename, content, user_request}
+    Devuelve: {file_b64, mime, filename} + para PPTX: {preview_images}
+    """
+    if not request.headers.get("Authorization") == f"Bearer {API_KEY}":
+        return jsonify({"error": "Unauthorized"}), 401
+    if not DOC_GEN_AVAILABLE:
+        return jsonify({"error": "Generación de documentos no disponible"}), 503
+
+    data         = request.json or {}
+    doc_type     = data.get("type", "txt")
+    filename     = data.get("filename", f"archivo.{doc_type}")
+    content      = data.get("content", "")
+    user_request = data.get("user_request", "")
+
+    if not content:
+        return jsonify({"error": "Contenido vacío"}), 400
+
+    print(f"[DOC] Generando {doc_type} → {filename} ({len(content)} chars)")
+    try:
+        file_bytes = docgen.generate_file(doc_type, content, filename)
+        mime       = docgen.MIME_MAP.get(doc_type, 'application/octet-stream')
+        file_b64   = base64.b64encode(file_bytes).decode()
+
+        result = {
+            "ok":       True,
+            "filename": filename,
+            "mime":     mime,
+            "size_kb":  round(len(file_bytes) / 1024, 1),
+            "file_b64": file_b64,
+        }
+
+        # Preview de slides para PPTX
+        if doc_type == 'pptx':
+            print(f"[DOC] Generando preview de slides...")
+            preview_images = docgen.pptx_to_preview(file_bytes)
+            result["preview_images"] = preview_images
+            print(f"[DOC] Preview: {len(preview_images)} slides")
+
+        print(f"[DOC] ✅ {filename} — {result['size_kb']} KB")
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"[DOC] ❌ Error: {e}")
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/docs/system-prompt", methods=["GET"])
+def doc_system_prompt():
+    """Devuelve el texto adicional para el system prompt cuando se detecta un doc."""
+    if not request.headers.get("Authorization") == f"Bearer {API_KEY}":
+        return jsonify({"error": "Unauthorized"}), 401
+    doc_type = request.args.get("type", "docx")
+    prompts  = {
+        "pptx": (
+            "El usuario quiere una PRESENTACIÓN. Estructura tu respuesta con slides claros usando este formato:\n"
+            "# Título de la Presentación\nSubtítulo o descripción breve\n---\n"
+            "# Slide 1: [Título del slide]\n[Subtítulo opcional]\n- Punto clave 1\n- Punto clave 2\n- Punto clave 3\n---\n"
+            "# Slide 2: [Título del slide]\n- Punto A\n- Punto B\n---\n"
+            "Incluye entre 5 y 10 slides. Usa bullet points concisos (máx 10 palabras cada uno). "
+            "Sé visual y directo. Separa cada slide con '---'."
+        ),
+        "docx": (
+            "El usuario quiere un DOCUMENTO WORD. Usa formato Markdown rico:\n"
+            "- # para título principal\n- ## para secciones\n- ### para subsecciones\n"
+            "- **negrita** para énfasis\n- listas con '-'\n- tablas con | col | col |\n"
+            "- bloques de código con ```\nEscribe contenido completo y profesional."
+        ),
+        "xlsx": (
+            "El usuario quiere un EXCEL. Estructura con:\n"
+            "- # Título principal\n- ## Encabezados de sección\n"
+            "- Tablas markdown: | Col1 | Col2 | Col3 |\n"
+            "Incluye datos reales, fórmulas descriptivas y organización clara por secciones."
+        ),
+        "pdf": (
+            "El usuario quiere un PDF. Usa formato Markdown profesional con:\n"
+            "- # Título\n- ## Secciones\n- Párrafos bien desarrollados\n"
+            "- Listas, tablas y bloques de código donde aplique.\nEscribe contenido completo."
+        ),
+    }
+    # Código
+    code_types = {'py','js','ts','jsx','tsx','html','css','json','sql','sh','yaml',
+                  'xml','java','cpp','c','go','rs','php','rb','swift','kt','dart','md'}
+    if doc_type in code_types:
+        prompt = (
+            f"El usuario quiere un archivo de código {doc_type.upper()}. "
+            "Escribe SOLO el código completo y funcional dentro de un bloque ```"
+            f"{doc_type}\n...\n```. "
+            "No incluyas explicaciones antes ni después del código. El código debe ser completo, "
+            "bien comentado y listo para usar."
+        )
+    else:
+        prompt = prompts.get(doc_type, "Escribe contenido bien estructurado con Markdown.")
+    return jsonify({"prompt": prompt})
+
 
 # ── SERVE HTML ────────────────────────────────────────────────────────────────
 
