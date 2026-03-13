@@ -1134,34 +1134,37 @@ async function sendMessage(text) {
   // Imagen pendiente
   if (pendingImage) { await sendImageMessage(content || 'Describe esta imagen en detalle'); return; }
 
-  // Construir mensaje visible para el usuario
-  let userDisplayText = content;
-  if (pendingFile) {
-    userDisplayText = content
-      ? `📎 ${pendingFile.name}\n${content}`
-      : `📎 ${pendingFile.name}`;
-  }
-  if (searchModeActive && content) {
-    userDisplayText = `🔍 ${content}`;
-  }
+  // Detectar doc antes de mostrar nada
+  let docInfo = null;
+  let docSystemPrompt = '';
+  try {
+    const dr = await fetch(`${API}/api/docs/detect`, {
+      method:'POST', headers:H, body: JSON.stringify({message: content})
+    });
+    docInfo = await dr.json();
+    if (docInfo && docInfo.type) {
+      const spr = await fetch(`${API}/api/docs/system-prompt?type=${docInfo.type}`, {headers:H});
+      const spd = await spr.json();
+      docSystemPrompt = spd.prompt || '';
+    }
+  } catch(e) { docInfo = null; }
 
+  // Mensaje visible usuario
+  let userDisplayText = content;
+  if (pendingFile) userDisplayText = content ? `📎 ${pendingFile.name}\n${content}` : `📎 ${pendingFile.name}`;
+  if (searchModeActive && content) userDisplayText = `🔍 ${content}`;
   appendMessage('user', userDisplayText);
 
   const model = document.getElementById('model-select').value;
-  isStreaming  = true;
+  isStreaming = true;
   document.getElementById('send-btn').disabled = true;
   addTyping();
 
+  // Búsqueda web
   let webContext = null;
+  if (searchModeActive && content) webContext = await doWebSearch(content);
 
-  // ── Búsqueda web ──
-  if (searchModeActive && content) {
-    webContext = await doWebSearch(content);
-    // Opcional: auto-desactivar después de 1 búsqueda
-    // toggleSearchMode();
-  }
-
-  // ── Archivo pendiente ──
+  // Archivo pendiente
   let fileContext = null;
   if (pendingFile) {
     fileContext = `📎 Archivo cargado: "${pendingFile.name}" (${pendingFile.type})\n\n${pendingFile.content}`;
@@ -1170,12 +1173,12 @@ async function sendMessage(text) {
 
   // Combinar contextos
   let combinedWebContext = '';
-  if (fileContext)  combinedWebContext += fileContext + '\n\n';
-  if (webContext)   combinedWebContext += webContext;
+  if (fileContext)      combinedWebContext += fileContext + '\n\n';
+  if (webContext)       combinedWebContext += webContext;
+  if (docSystemPrompt) combinedWebContext += (combinedWebContext ? '\n\n' : '') + '📄 INSTRUCCIÓN DE FORMATO:\n' + docSystemPrompt;
 
-  // Construir mensajes
-  const history = buildHistory();
-  const userMsg = content || `Analiza el archivo adjunto`;
+  const history  = buildHistory();
+  const userMsg  = content || 'Analiza el archivo adjunto';
   const messages = [...history, {role:'user', content: userMsg}];
 
   const bodyData = {
@@ -1184,6 +1187,7 @@ async function sendMessage(text) {
     web_context: combinedWebContext || undefined
   };
 
+  let full = '';
   try {
     const r = await fetch(`${API}/v1/chat/completions`, {
       method:'POST', headers:H, body: JSON.stringify(bodyData)
@@ -1191,22 +1195,19 @@ async function sendMessage(text) {
 
     removeTyping();
     const shortModel = model.split('/').pop().slice(0,22);
-
-    // Badge de búsqueda en la respuesta si aplica
     let extraBadge = '';
-    if (webContext)  extraBadge += `<div class="search-badge">🔍 Con búsqueda web en tiempo real</div>`;
-    if (fileContext) extraBadge += `<div class="search-badge" style="border-color:rgba(124,106,247,.3);color:var(--accent);">📎 Con contexto de archivo</div>`;
+    if (webContext)      extraBadge += `<div class="search-badge">🔍 Con búsqueda web en tiempo real</div>`;
+    if (fileContext)     extraBadge += `<div class="search-badge" style="border-color:rgba(124,106,247,.3);color:var(--accent);">📎 Con contexto de archivo</div>`;
+    if (docInfo?.type)   extraBadge += `<div class="search-badge" style="border-color:rgba(0,229,255,.3);color:var(--accent3);">${DOC_ICONS[docInfo.type]||'📎'} Generando ${docInfo.filename}...</div>`;
 
     const aiEl = document.createElement('div');
-    aiEl.className = 'message assistant';
-    aiEl.id = 'typing';
+    aiEl.className = 'message assistant'; aiEl.id = 'typing';
     aiEl.innerHTML = `<div class="msg-header"><span class="msg-role">CesarIA</span><span class="msg-model">${shortModel}</span></div>
       <div class="msg-bubble">${extraBadge}<span id="stream-bubble"></span></div>`;
     document.getElementById('messages').appendChild(aiEl);
 
-    const reader  = r.body.getReader();
+    const reader = r.body.getReader();
     const decoder = new TextDecoder();
-    let full = '';
     const bubble = document.getElementById('stream-bubble');
 
     while (true) {
@@ -1239,6 +1240,11 @@ async function sendMessage(text) {
   document.getElementById('send-btn').disabled = false;
   await loadChats();
   await loadStats();
+
+  // Generar documento si aplica
+  if (docInfo && docInfo.type && full) {
+    await _doGenerateDoc(userMsg, full, docInfo);
+  }
 }
 
 async function sendImageMessage(question) {
@@ -1714,53 +1720,6 @@ function buildThumbs() {
   });
 }
 
-/* ── Patch sendMessage para inyectar system prompt de doc y generar después ── */
-const _origSendMsg = sendMessage;
-async function sendMessage(text) {
-  const input   = document.getElementById('msg-input');
-  const content = text || input.value.trim();
-  if (!content || isStreaming) return;
-
-  // Pre-detectar tipo de doc para inyectar system prompt
-  let docInfo = null;
-  let docSystemPrompt = '';
-  try {
-    const dr = await fetch(`${API}/api/docs/detect`, {
-      method:'POST', headers:H, body: JSON.stringify({message: content})
-    });
-    docInfo = await dr.json();
-    if (docInfo && docInfo.type) {
-      const spr = await fetch(`${API}/api/docs/system-prompt?type=${docInfo.type}`, {headers:H});
-      const spd = await spr.json();
-      docSystemPrompt = spd.prompt || '';
-    }
-  } catch(e) {}
-
-  // Llamar al sendMessage original pero con contexto de doc si aplica
-  // Inyectamos el docSystemPrompt como web_context adicional
-  if (docSystemPrompt) {
-    // Temporarily override the web_context injection point
-    window._docSystemPrompt = docSystemPrompt;
-  }
-
-  await _origSendMsg.call(this, text);
-  window._docSystemPrompt = null;
-
-  // Después del stream, generar el archivo
-  if (docInfo && docInfo.type) {
-    setTimeout(async () => {
-      const bubbles = document.querySelectorAll('.message.assistant .msg-bubble');
-      if (!bubbles.length) return;
-      const lastBubble = bubbles[bubbles.length - 1];
-      const aiText = lastBubble.innerText || '';
-      if (aiText && aiText.length > 20) {
-        currentDocB64 = null; currentDocFilename = null; currentDocMime = null;
-        currentSlideImages = [];
-        await _doGenerateDoc(content, aiText, docInfo);
-      }
-    }, 600);
-  }
-}
 
 async function _doGenerateDoc(userMessage, aiResponse, docInfo) {
   const genEl = document.createElement('div');
