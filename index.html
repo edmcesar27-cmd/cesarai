@@ -148,6 +148,40 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
 .msg-bubble img{max-width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--border);}
 .msg-image-thumb{max-width:200px;max-height:200px;border-radius:8px;margin-top:6px;
   border:1px solid rgba(224,64,251,.3);display:block;}
+
+/* ── WEB SEARCH BADGE ── */
+.search-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(0,229,255,.08);
+  border:1px solid rgba(0,229,255,.25);border-radius:6px;padding:3px 8px;font-size:10px;
+  color:var(--accent3);font-family:'Space Mono',monospace;margin-bottom:6px;cursor:default;}
+.search-badge.loading{animation:pulse 1s ease-in-out infinite;}
+
+/* ── FILE PREVIEW ── */
+.file-preview-area{margin-bottom:6px;}
+.file-preview{display:flex;align-items:center;gap:8px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:8px;padding:7px 10px;}
+.file-preview-icon{font-size:20px;flex-shrink:0;}
+.file-preview-info{flex:1;min-width:0;}
+.file-preview-name{font-size:12px;color:var(--text);font-family:'Space Mono',monospace;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.file-preview-meta{font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;margin-top:2px;}
+.file-preview-remove{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;flex-shrink:0;}
+
+/* ── ZIP MODAL ── */
+.zip-file-list{max-height:280px;overflow-y:auto;margin:10px 0;}
+.zip-file-list::-webkit-scrollbar{width:3px;}
+.zip-file-list::-webkit-scrollbar-thumb{background:var(--border);}
+.zip-file-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;
+  margin-bottom:3px;transition:background .15s;cursor:pointer;}
+.zip-file-item:hover{background:var(--bg3);}
+.zip-file-item input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;flex-shrink:0;}
+.zip-file-item-name{font-size:12px;color:var(--text);font-family:'Space Mono',monospace;flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.zip-file-item-size{font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;flex-shrink:0;}
+.zip-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.zip-action-btn{padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+  color:var(--text2);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s;}
+.zip-action-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(124,106,247,.08);}
+
 .typing-indicator{display:flex;align-items:center;gap:5px;padding:12px 14px;}
 .typing-dot{width:7px;height:7px;border-radius:50%;animation:typingBounce 1.2s ease-in-out infinite;}
 .typing-dot:nth-child(1){background:var(--accent);animation-delay:0s}
@@ -163,6 +197,9 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
   background:linear-gradient(135deg,var(--accent),var(--accent2),var(--accent3));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;}
 .welcome-sub{font-size:13px;color:var(--text2);max-width:280px;line-height:1.6;font-family:'Space Mono',monospace;}
+.welcome-features{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px;}
+.welcome-feat{padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;
+  font-size:11px;color:var(--text3);font-family:'Space Mono',monospace;}
 
 #quick-btns{display:flex;gap:7px;padding:0 14px 8px;overflow-x:auto;flex-shrink:0;}
 #quick-btns::-webkit-scrollbar{display:none;}
@@ -191,6 +228,15 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
 #img-upload-btn{background:var(--bg2);color:var(--text2);}
 #img-upload-btn:hover{background:rgba(0,229,255,.1);color:var(--accent3);}
 #img-upload-btn.has-image{background:rgba(0,229,255,.15);color:var(--accent3);}
+/* File upload button */
+#file-upload-btn{background:var(--bg2);color:var(--text2);}
+#file-upload-btn:hover{background:rgba(124,106,247,.1);color:var(--accent);}
+#file-upload-btn.has-file{background:rgba(124,106,247,.15);color:var(--accent);}
+/* Search button */
+#search-toggle-btn{background:var(--bg2);color:var(--text2);}
+#search-toggle-btn:hover{background:rgba(0,229,255,.1);color:var(--accent3);}
+#search-toggle-btn.active{background:rgba(0,229,255,.15);color:var(--accent3);
+  box-shadow:0 0 10px rgba(0,229,255,.2);}
 #voice-btn{background:var(--bg2);color:var(--text2);}
 #voice-btn:hover{background:rgba(0,229,255,.1);color:var(--accent3);}
 #voice-btn.recording{background:rgba(255,68,68,.15);color:var(--danger);animation:recordPulse 1s ease-in-out infinite;}
@@ -201,6 +247,7 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
 #send-btn:active{transform:scale(.97);}
 #send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
 #file-input{display:none;}
+#doc-input{display:none;}
 
 #tts-bar{display:none;align-items:center;gap:8px;padding:7px 14px;
   background:rgba(0,229,255,.04);border-top:1px solid rgba(0,229,255,.1);}
@@ -217,10 +264,10 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
 #tts-stop{background:none;border:none;color:var(--accent3);cursor:pointer;font-size:14px;}
 
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
-  backdrop-filter:blur(8px);z-index:100;align-items:center;justify-content:center;}
+  backdrop-filter:blur(8px);z-index:100;align-items:center;justify-content:center;padding:16px;}
 .modal-overlay.open{display:flex;}
 .modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px;
-  width:92%;max-width:420px;animation:modalIn .25s cubic-bezier(.4,0,.2,1);}
+  width:92%;max-width:420px;animation:modalIn .25s cubic-bezier(.4,0,.2,1);max-height:90dvh;overflow-y:auto;}
 @keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .modal h2{font-size:17px;font-weight:800;margin-bottom:18px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
@@ -286,8 +333,6 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
       <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Iniciar sesión</div>
       <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Registrarse</div>
     </div>
-
-    <!-- Login form -->
     <div class="auth-form" id="form-login">
       <div class="auth-field">
         <label>Usuario</label>
@@ -300,8 +345,6 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
       <div class="auth-error" id="login-error"></div>
       <button class="auth-btn" id="login-btn" onclick="doLogin()">Entrar ➤</button>
     </div>
-
-    <!-- Register form -->
     <div class="auth-form hidden" id="form-register">
       <div class="auth-field">
         <label>Usuario</label>
@@ -365,6 +408,13 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
       <div class="welcome-icon">⚡</div>
       <div class="welcome-title" id="welcome-title">Hola!</div>
       <div class="welcome-sub">Tu asistente personal está listo. ¿En qué trabajamos hoy?</div>
+      <div class="welcome-features">
+        <span class="welcome-feat">🔍 Búsqueda web</span>
+        <span class="welcome-feat">📁 Archivos</span>
+        <span class="welcome-feat">📦 ZIPs</span>
+        <span class="welcome-feat">🎨 Imágenes</span>
+        <span class="welcome-feat">🎤 Voz</span>
+      </div>
     </div>
   </div>
 
@@ -378,38 +428,52 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
   </div>
 
   <div id="quick-btns">
+    <button class="quick-btn" onclick="activateSearch()">🔍 Buscar web</button>
+    <button class="quick-btn" onclick="document.getElementById('doc-input').click()">📁 Subir archivo</button>
     <button class="quick-btn" onclick="quickMsg('Resume lo mas importante del dia')">📋 Resumen</button>
     <button class="quick-btn" onclick="quickMsg('Dame ideas creativas para un proyecto')">💡 Ideas</button>
-    <button class="quick-btn" onclick="quickMsg('Ayudame a escribir un mensaje profesional')">✉ Mensaje</button>
-    <button class="quick-btn" onclick="quickMsg('Explica de forma simple: ')">🧠 Explicar</button>
     <button class="quick-btn" onclick="quickMsg('Escribe codigo para: ')">💻 Codigo</button>
     <button class="quick-btn" onclick="quickMsg('Que puedes hacer por mi?')">⚡ Capacidades</button>
   </div>
 
   <div id="input-area">
+    <!-- File preview area (for documents/zips) -->
+    <div class="file-preview-area" id="file-preview-area"></div>
+    <!-- Image preview area -->
     <div id="img-preview-area"></div>
     <div class="input-wrapper">
+      <!-- Hidden inputs -->
       <input type="file" id="file-input" accept="image/*" onchange="handleImageSelect(this)">
+      <input type="file" id="doc-input"
+        accept=".txt,.md,.py,.js,.ts,.jsx,.tsx,.html,.css,.json,.xml,.yaml,.yml,.csv,.sh,.sql,.php,.rb,.go,.rs,.java,.c,.cpp,.h,.env,.toml,.pdf,.zip"
+        onchange="handleDocSelect(this)">
+
       <textarea id="msg-input" placeholder="Escribe tu mensaje..." rows="1"
         onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+
+      <!-- Search toggle -->
+      <button class="input-btn" id="search-toggle-btn" onclick="toggleSearchMode()" title="Búsqueda web en tiempo real">🔍</button>
+      <!-- File upload -->
+      <button class="input-btn" id="file-upload-btn" onclick="document.getElementById('doc-input').click()" title="Subir archivo (txt, pdf, código, zip)">📎</button>
+      <!-- Image upload -->
       <button class="input-btn" id="img-upload-btn" onclick="document.getElementById('file-input').click()" title="Enviar imagen">📷</button>
+      <!-- Voice -->
       <button class="input-btn" id="voice-btn" onclick="toggleVoice()" title="Voz">🎤</button>
+      <!-- Send -->
       <button class="input-btn" id="send-btn" onclick="sendMessage()">➤</button>
     </div>
   </div>
 </div>
 
-<!-- Image gen modal -->
+<!-- ── IMAGE GEN MODAL ── -->
 <div class="modal-overlay" id="imggen-modal">
-  <div class="modal" style="max-width:480px;max-height:90dvh;overflow-y:auto;">
+  <div class="modal" style="max-width:480px;">
     <h2>🎨 Generar Imagen</h2>
-
     <div class="form-group">
       <label class="form-label">Descripción</label>
       <textarea class="form-textarea" id="imggen-prompt" rows="3"
-        placeholder="Un astronauta en la jungla, luz cinematográfica, hiperrealista..."></textarea>
+        placeholder="Un astronauta en la jungla, luz cinematográfica..."></textarea>
     </div>
-
     <div class="form-group">
       <label class="form-label">Estilo</label>
       <div id="style-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
@@ -427,7 +491,6 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
         <span class="style-chip" data-style="pixel art, 8-bit, retro game style">👾 Pixel art</span>
       </div>
     </div>
-
     <div style="display:flex;gap:10px;">
       <div class="form-group" style="flex:1">
         <label class="form-label">Proporción</label>
@@ -446,7 +509,6 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
         </select>
       </div>
     </div>
-
     <div class="form-group">
       <label class="form-label">Motor de generación</label>
       <select class="form-select" id="imggen-engine">
@@ -459,10 +521,8 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
         Todos sin key · Hugging Face carga si configuras HF_API_KEY
       </div>
     </div>
-
     <div id="img-gen-result"></div>
     <div id="img-gen-status" style="font-size:12px;color:var(--text2);font-family:'Space Mono',monospace;margin-top:8px;text-align:center;min-height:18px;"></div>
-
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeImgGen()">Cerrar</button>
       <button class="btn-save" id="imggen-btn" onclick="generateImage()">✨ Generar</button>
@@ -470,7 +530,49 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
   </div>
 </div>
 
-<!-- Settings modal -->
+<!-- ── ZIP MODAL ── -->
+<div class="modal-overlay" id="zip-modal">
+  <div class="modal" style="max-width:500px;">
+    <h2>📦 Archivo ZIP detectado</h2>
+    <div id="zip-info" style="font-size:12px;color:var(--text2);font-family:'Space Mono',monospace;margin-bottom:12px;"></div>
+
+    <div class="form-group">
+      <label class="form-label">Archivos en el ZIP</label>
+      <div style="font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;margin-bottom:6px;">
+        Selecciona los archivos que quieres incluir (máx. recomendado: 10)
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button onclick="zipSelectAll(true)" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);
+          border-radius:6px;color:var(--text2);font-family:'Space Mono',monospace;font-size:10px;cursor:pointer;">
+          ✓ Todos
+        </button>
+        <button onclick="zipSelectAll(false)" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);
+          border-radius:6px;color:var(--text2);font-family:'Space Mono',monospace;font-size:10px;cursor:pointer;">
+          ✗ Ninguno
+        </button>
+      </div>
+      <div class="zip-file-list" id="zip-file-list"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">¿Qué quieres hacer con estos archivos?</label>
+      <div class="zip-actions" id="zip-actions">
+        <button class="zip-action-btn" onclick="zipAction('Analiza todos estos archivos y dame un resumen completo de qué hace este proyecto, su estructura y puntos importantes.')">📋 Resumir proyecto</button>
+        <button class="zip-action-btn" onclick="zipAction('Revisa todo el código de estos archivos y detecta bugs, errores potenciales y mejoras de seguridad.')">🐛 Buscar bugs</button>
+        <button class="zip-action-btn" onclick="zipAction('Lee estos archivos y explícame cómo funciona este código/proyecto de forma clara.')">🧠 Explicar código</button>
+        <button class="zip-action-btn" onclick="zipAction('Analiza la arquitectura y estructura de este proyecto y sugiere mejoras.')">🏗 Analizar estructura</button>
+        <button class="zip-action-btn" onclick="zipAction('Genera documentación completa (README) para este proyecto basándote en el código.')">📝 Generar docs</button>
+        <button class="zip-action-btn" onclick="zipAskCustom()">💬 Pregunta personalizada</button>
+      </div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeZipModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS MODAL ── -->
 <div class="modal-overlay" id="settings-modal">
   <div class="modal">
     <h2>⚙ Configuracion</h2>
@@ -497,14 +599,19 @@ const API = '';
 const KEY = 'test123';
 const H = {'Authorization':`Bearer ${KEY}`,'Content-Type':'application/json'};
 
-let currentSession = null;
-let isStreaming = false;
-let recognition = null;
-let isRecording = false;
-let synth = window.speechSynthesis;
-let pendingImage = null;
+let currentSession  = null;
+let isStreaming     = false;
+let recognition     = null;
+let isRecording     = false;
+let synth           = window.speechSynthesis;
+let pendingImage    = null;
 let hasImageContext = false;
-let currentUser = null;
+let currentUser     = null;
+
+// ── NEW STATE ─────────────────────────────────────────────────────────────────
+let searchModeActive = false;   // búsqueda web activada
+let pendingFile      = null;    // archivo pendiente (no imagen)
+let pendingZipData   = null;    // datos del ZIP parseado
 
 // ── AUTH ─────────────────────────────────────────────────────────────────────
 
@@ -519,15 +626,14 @@ function switchTab(tab) {
 
 async function doLogin() {
   const username = document.getElementById('login-username').value.trim();
-  const pin = document.getElementById('login-pin').value.trim();
-  const errEl = document.getElementById('login-error');
-  const btn = document.getElementById('login-btn');
-
+  const pin      = document.getElementById('login-pin').value.trim();
+  const errEl    = document.getElementById('login-error');
+  const btn      = document.getElementById('login-btn');
   if (!username || !pin) { showAuthError(errEl, 'Completa todos los campos'); return; }
   btn.disabled = true; btn.textContent = 'Entrando...';
   try {
     const r = await fetch(`${API}/api/auth/login`, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({username, pin})
     });
     const data = await r.json();
@@ -540,16 +646,15 @@ async function doLogin() {
 
 async function doRegister() {
   const username = document.getElementById('reg-username').value.trim();
-  const display = document.getElementById('reg-display').value.trim();
-  const pin = document.getElementById('reg-pin').value.trim();
-  const errEl = document.getElementById('reg-error');
-  const btn = document.getElementById('reg-btn');
-
+  const display  = document.getElementById('reg-display').value.trim();
+  const pin      = document.getElementById('reg-pin').value.trim();
+  const errEl    = document.getElementById('reg-error');
+  const btn      = document.getElementById('reg-btn');
   if (!username || !pin) { showAuthError(errEl, 'Completa todos los campos'); return; }
   btn.disabled = true; btn.textContent = 'Creando cuenta...';
   try {
     const r = await fetch(`${API}/api/auth/register`, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({username, pin, display_name: display || username})
     });
     const data = await r.json();
@@ -560,14 +665,11 @@ async function doRegister() {
   finally { btn.disabled = false; btn.textContent = 'Crear cuenta ✦'; }
 }
 
-function showAuthError(el, msg) {
-  el.textContent = msg; el.classList.add('visible');
-}
+function showAuthError(el, msg) { el.textContent = msg; el.classList.add('visible'); }
 
 async function doLogout() {
   await fetch(`${API}/api/auth/logout`, {method:'POST'});
-  currentUser = null;
-  currentSession = null;
+  currentUser = null; currentSession = null;
   document.getElementById('auth-screen').classList.remove('hidden');
   document.getElementById('login-username').value = '';
   document.getElementById('login-pin').value = '';
@@ -586,8 +688,6 @@ function onLoginSuccess() {
   init();
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
-
 async function init() {
   await loadModels();
   await loadChats();
@@ -605,15 +705,16 @@ async function checkSession() {
       return;
     }
   } catch(e) {}
-  // Not logged in — show auth screen
   document.getElementById('auth-screen').classList.remove('hidden');
 }
 
+// ── MODELS & CHATS ────────────────────────────────────────────────────────────
+
 async function loadModels() {
   try {
-    const r = await fetch(`${API}/v1/models`, {headers:H});
+    const r    = await fetch(`${API}/v1/models`, {headers:H});
     const data = await r.json();
-    const sel = document.getElementById('model-select');
+    const sel  = document.getElementById('model-select');
     sel.innerHTML = '';
     const groups = {};
     data.data.forEach(m => {
@@ -636,7 +737,7 @@ async function loadModels() {
 
 async function loadChats() {
   try {
-    const r = await fetch(`${API}/api/chats`, {headers:H});
+    const r     = await fetch(`${API}/api/chats`, {headers:H});
     const chats = await r.json();
     renderChats(chats);
   } catch(e) {}
@@ -652,7 +753,7 @@ function renderChats(chats) {
     div.dataset.id = chat.session_id;
     div.innerHTML = `<span class="chat-item-title">${esc(chat.title)}</span>
       <button class="chat-delete" onclick="deleteChat('${chat.session_id}',event)">✕</button>`;
-    div.onclick = (e) => loadChat(chat.session_id, chat.title);
+    div.onclick = () => loadChat(chat.session_id, chat.title);
     list.appendChild(div);
   });
 }
@@ -665,7 +766,7 @@ async function loadChat(sessionId, title) {
   document.querySelectorAll('.chat-item').forEach(el =>
     el.classList.toggle('active', el.dataset.id === sessionId));
   try {
-    const r = await fetch(`${API}/api/chats/${sessionId}`, {headers:H});
+    const r        = await fetch(`${API}/api/chats/${sessionId}`, {headers:H});
     const messages = await r.json();
     document.getElementById('messages').innerHTML = '';
     messages.forEach(m => appendMessage(m.role, m.content, false));
@@ -675,8 +776,10 @@ async function loadChat(sessionId, title) {
 }
 
 function newChat() {
-  currentSession = `chat_${Date.now()}`;
+  currentSession  = `chat_${Date.now()}`;
   hasImageContext = false;
+  pendingFile     = null;
+  clearFilePreview();
   document.getElementById('img-badge').classList.remove('visible');
   document.getElementById('messages').innerHTML = `
     <div id="welcome">
@@ -706,50 +809,333 @@ async function loadStats() {
   try {
     const r = await fetch(`${API}/api/stats`, {headers:H});
     const d = await r.json();
-    document.getElementById('stat-msgs').textContent = d.total_messages || 0;
-    document.getElementById('stat-chats').textContent = d.total_chats || 0;
+    document.getElementById('stat-msgs').textContent  = d.total_messages || 0;
+    document.getElementById('stat-chats').textContent = d.total_chats    || 0;
   } catch(e) {}
+}
+
+// ── WEB SEARCH ────────────────────────────────────────────────────────────────
+
+function toggleSearchMode() {
+  searchModeActive = !searchModeActive;
+  const btn = document.getElementById('search-toggle-btn');
+  btn.classList.toggle('active', searchModeActive);
+  const input = document.getElementById('msg-input');
+  if (searchModeActive) {
+    input.placeholder = '🔍 Escribe tu pregunta (buscará en internet)...';
+    showToast('🔍 Búsqueda web activada');
+  } else {
+    input.placeholder = 'Escribe tu mensaje...';
+    showToast('Búsqueda web desactivada');
+  }
+}
+
+function activateSearch() {
+  if (!searchModeActive) toggleSearchMode();
+  document.getElementById('msg-input').focus();
+}
+
+async function doWebSearch(query) {
+  // Muestra badge de búsqueda
+  const badge = document.createElement('div');
+  badge.className = 'search-badge loading';
+  badge.id = 'search-badge-active';
+  badge.textContent = `🔍 Buscando: "${query.slice(0,40)}${query.length>40?'...':''}"`;
+  const msgsEl = document.getElementById('messages');
+  msgsEl.appendChild(badge);
+  scrollBottom();
+
+  try {
+    const r = await fetch(`${API}/api/search`, {
+      method:'POST', headers:H,
+      body: JSON.stringify({query, max_results: 5})
+    });
+    const data = await r.json();
+    document.getElementById('search-badge-active')?.remove();
+
+    if (data.error) {
+      showToast('⚠️ ' + data.error);
+      return null;
+    }
+
+    // Construir contexto para el modelo
+    let ctx = `🔍 Resultados de búsqueda web para: "${query}"\nFecha: ${new Date().toLocaleString('es')}\n\n`;
+    if (data.answer) ctx += `Respuesta directa: ${data.answer}\n\n`;
+    data.results.forEach((r, i) => {
+      ctx += `[${i+1}] ${r.title}\nURL: ${r.url}\n${r.snippet}\n\n`;
+    });
+    return ctx;
+  } catch(e) {
+    document.getElementById('search-badge-active')?.remove();
+    showToast('Error en la búsqueda web');
+    return null;
+  }
+}
+
+// ── FILE UPLOAD ───────────────────────────────────────────────────────────────
+
+async function handleDocSelect(input) {
+  if (!input.files || !input.files[0]) return;
+  const file   = input.files[0];
+  const ext    = file.name.split('.').pop().toLowerCase();
+  const sizeKB = Math.round(file.size / 1024);
+
+  showToast(`📁 Cargando ${file.name}...`);
+
+  // Determinar ícono
+  const icons = {pdf:'📄', zip:'📦', py:'🐍', js:'📜', ts:'📜', html:'🌐',
+                 css:'🎨', json:'📋', md:'📝', txt:'📄', sql:'🗃', sh:'⚙'};
+  const icon  = icons[ext] || '📎';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const r    = await fetch(`${API}/api/files/upload`, {
+      method:'POST',
+      headers:{'Authorization':`Bearer ${KEY}`},
+      body: formData
+    });
+    const data = await r.json();
+
+    if (!r.ok) { showToast('❌ ' + (data.error || 'Error al subir')); input.value=''; return; }
+
+    if (data.type === 'zip') {
+      // Abrir modal de ZIP
+      input.value = '';
+      openZipModal(data);
+    } else {
+      // Archivo de texto/pdf — preparar como contexto
+      pendingFile = {
+        name:    data.filename,
+        type:    data.type,
+        ext:     ext,
+        icon:    icon,
+        size_kb: data.size_kb,
+        content: data.content,
+        truncated: data.truncated
+      };
+      showFilePreview(pendingFile);
+      document.getElementById('msg-input').placeholder = `Pregunta sobre ${data.filename}...`;
+      document.getElementById('msg-input').focus();
+      showToast(`✅ ${file.name} listo (${sizeKB} KB)`);
+    }
+  } catch(e) {
+    showToast('Error conectando al servidor');
+    input.value = '';
+  }
+}
+
+function showFilePreview(fileData) {
+  const area = document.getElementById('file-preview-area');
+  const truncNote = fileData.truncated ? ' ⚠️ truncado' : '';
+  area.innerHTML = `
+    <div class="file-preview">
+      <span class="file-preview-icon">${fileData.icon}</span>
+      <div class="file-preview-info">
+        <div class="file-preview-name">${esc(fileData.name)}</div>
+        <div class="file-preview-meta">${fileData.size_kb} KB · ${fileData.type}${truncNote}</div>
+      </div>
+      <button class="file-preview-remove" onclick="clearFilePreview()">✕</button>
+    </div>`;
+  document.getElementById('file-upload-btn').classList.add('has-file');
+}
+
+function clearFilePreview() {
+  pendingFile = null;
+  document.getElementById('file-preview-area').innerHTML = '';
+  document.getElementById('doc-input').value = '';
+  document.getElementById('file-upload-btn').classList.remove('has-file');
+  if (!hasImageContext) document.getElementById('msg-input').placeholder = 'Escribe tu mensaje...';
+}
+
+// ── ZIP MODAL ─────────────────────────────────────────────────────────────────
+
+function openZipModal(zipData) {
+  pendingZipData = zipData;
+  const info     = document.getElementById('zip-info');
+  info.textContent = `📦 ${zipData.filename} · ${zipData.total_files} archivos · ${zipData.readable_files} legibles`;
+
+  const list = document.getElementById('zip-file-list');
+  list.innerHTML = '';
+  (zipData.files || []).forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'zip-file-item';
+    const sizeStr = f.size_kb < 1 ? '<1 KB' : `${f.size_kb} KB`;
+    const readBadge = f.readable ? '' : ' 🔒';
+    div.innerHTML = `
+      <input type="checkbox" id="zf_${i}" value="${esc(f.name)}" ${f.readable ? 'checked' : 'disabled'}>
+      <label for="zf_${i}" class="zip-file-item-name" style="cursor:pointer">${esc(f.name)}${readBadge}</label>
+      <span class="zip-file-item-size">${sizeStr}</span>`;
+    list.appendChild(div);
+  });
+
+  document.getElementById('zip-modal').classList.add('open');
+}
+
+function closeZipModal() {
+  document.getElementById('zip-modal').classList.remove('open');
+  pendingZipData = null;
+}
+
+function zipSelectAll(checked) {
+  document.querySelectorAll('#zip-file-list input[type=checkbox]:not(:disabled)').forEach(cb => {
+    cb.checked = checked;
+  });
+}
+
+function getSelectedZipFiles() {
+  return Array.from(
+    document.querySelectorAll('#zip-file-list input[type=checkbox]:checked')
+  ).map(cb => cb.value);
+}
+
+function buildZipContext(selectedFiles) {
+  if (!pendingZipData) return '';
+  const allFiles = JSON.parse(pendingZipData.zip_content || '[]');
+  const chosen   = allFiles.filter(f => selectedFiles.includes(f.name));
+
+  let ctx = `📦 Contenido del ZIP "${pendingZipData.filename}" (${chosen.length} archivos seleccionados):\n\n`;
+  chosen.forEach(f => {
+    const sizeKB = (f.size / 1024).toFixed(1);
+    ctx += `--- Archivo: ${f.name} (${sizeKB} KB) ---\n`;
+    if (f.text) {
+      const preview = f.text.length > 4000 ? f.text.slice(0,4000) + '\n... [truncado]' : f.text;
+      ctx += `\`\`\`${f.ext.replace('.','')}\n${preview}\n\`\`\`\n\n`;
+    } else {
+      ctx += `[Archivo binario — no legible]\n\n`;
+    }
+  });
+  return ctx;
+}
+
+function zipAction(actionText) {
+  const selected = getSelectedZipFiles();
+  if (selected.length === 0) { showToast('Selecciona al menos un archivo'); return; }
+
+  const ctx = buildZipContext(selected);
+  closeZipModal();
+
+  // Preparar como archivo pendiente especial
+  pendingFile = {
+    name:    pendingZipData?.filename || 'archivo.zip',
+    type:    'zip',
+    ext:     'zip',
+    icon:    '📦',
+    size_kb: '?',
+    content: ctx,
+    truncated: false
+  };
+  showFilePreview(pendingFile);
+
+  // Poner la pregunta en el input y enviar
+  document.getElementById('msg-input').value = actionText;
+  sendMessage();
+}
+
+function zipAskCustom() {
+  const selected = getSelectedZipFiles();
+  if (selected.length === 0) { showToast('Selecciona al menos un archivo'); return; }
+
+  const ctx = buildZipContext(selected);
+  closeZipModal();
+
+  pendingFile = {
+    name: pendingZipData?.filename || 'archivo.zip',
+    type: 'zip', ext: 'zip', icon: '📦', size_kb: '?',
+    content: ctx, truncated: false
+  };
+  showFilePreview(pendingFile);
+  document.getElementById('msg-input').placeholder = 'Escribe tu pregunta sobre el ZIP...';
+  document.getElementById('msg-input').focus();
 }
 
 // ── SEND MESSAGE ──────────────────────────────────────────────────────────────
 
 async function sendMessage(text) {
-  const input = document.getElementById('msg-input');
+  const input   = document.getElementById('msg-input');
   const content = text || input.value.trim();
-  if ((!content && !pendingImage) || isStreaming) return;
+  if ((!content && !pendingImage && !pendingFile) || isStreaming) return;
 
   if (!currentSession) currentSession = `chat_${Date.now()}`;
   document.getElementById('welcome')?.remove();
   input.value = '';
   input.style.height = 'auto';
 
+  // Imagen pendiente
   if (pendingImage) { await sendImageMessage(content || 'Describe esta imagen en detalle'); return; }
 
-  appendMessage('user', content);
+  // Construir mensaje visible para el usuario
+  let userDisplayText = content;
+  if (pendingFile) {
+    userDisplayText = content
+      ? `📎 ${pendingFile.name}\n${content}`
+      : `📎 ${pendingFile.name}`;
+  }
+  if (searchModeActive && content) {
+    userDisplayText = `🔍 ${content}`;
+  }
+
+  appendMessage('user', userDisplayText);
+
   const model = document.getElementById('model-select').value;
-  isStreaming = true;
+  isStreaming  = true;
   document.getElementById('send-btn').disabled = true;
   addTyping();
 
+  let webContext = null;
+
+  // ── Búsqueda web ──
+  if (searchModeActive && content) {
+    webContext = await doWebSearch(content);
+    // Opcional: auto-desactivar después de 1 búsqueda
+    // toggleSearchMode();
+  }
+
+  // ── Archivo pendiente ──
+  let fileContext = null;
+  if (pendingFile) {
+    fileContext = `📎 Archivo cargado: "${pendingFile.name}" (${pendingFile.type})\n\n${pendingFile.content}`;
+    clearFilePreview();
+  }
+
+  // Combinar contextos
+  let combinedWebContext = '';
+  if (fileContext)  combinedWebContext += fileContext + '\n\n';
+  if (webContext)   combinedWebContext += webContext;
+
+  // Construir mensajes
+  const history = buildHistory();
+  const userMsg = content || `Analiza el archivo adjunto`;
+  const messages = [...history, {role:'user', content: userMsg}];
+
+  const bodyData = {
+    model, stream: true, session_id: currentSession,
+    messages, user_text: userMsg,
+    web_context: combinedWebContext || undefined
+  };
+
   try {
-    const bodyData = {
-      model, stream: true, session_id: currentSession,
-      messages: buildHistory(), user_text: content
-    };
     const r = await fetch(`${API}/v1/chat/completions`, {
       method:'POST', headers:H, body: JSON.stringify(bodyData)
     });
 
     removeTyping();
     const shortModel = model.split('/').pop().slice(0,22);
+
+    // Badge de búsqueda en la respuesta si aplica
+    let extraBadge = '';
+    if (webContext)  extraBadge += `<div class="search-badge">🔍 Con búsqueda web en tiempo real</div>`;
+    if (fileContext) extraBadge += `<div class="search-badge" style="border-color:rgba(124,106,247,.3);color:var(--accent);">📎 Con contexto de archivo</div>`;
+
     const aiEl = document.createElement('div');
     aiEl.className = 'message assistant';
     aiEl.id = 'typing';
     aiEl.innerHTML = `<div class="msg-header"><span class="msg-role">CesarIA</span><span class="msg-model">${shortModel}</span></div>
-      <div class="msg-bubble" id="stream-bubble"></div>`;
+      <div class="msg-bubble">${extraBadge}<span id="stream-bubble"></span></div>`;
     document.getElementById('messages').appendChild(aiEl);
 
-    const reader = r.body.getReader();
+    const reader  = r.body.getReader();
     const decoder = new TextDecoder();
     let full = '';
     const bubble = document.getElementById('stream-bubble');
@@ -810,7 +1196,7 @@ async function sendImageMessage(question) {
   addTyping();
 
   try {
-    const r = await fetch(`${API}/api/image/analyze`, {
+    const r    = await fetch(`${API}/api/image/analyze`, {
       method:'POST', headers:{'Authorization':`Bearer ${KEY}`}, body: formData
     });
     const data = await r.json();
@@ -859,7 +1245,7 @@ function removeTyping() { document.getElementById('typing')?.remove(); }
 function buildHistory() {
   const msgs = [];
   document.querySelectorAll('.message').forEach(el => {
-    const role = el.classList.contains('user') ? 'user' : 'assistant';
+    const role   = el.classList.contains('user') ? 'user' : 'assistant';
     const bubble = el.querySelector('.msg-bubble');
     if (bubble) {
       const text = bubble.innerText.trim();
@@ -930,20 +1316,20 @@ function openImgGen() {
 
 async function loadImageEngines() {
   try {
-    const r = await fetch(`${API}/api/image/engines`, {headers: H});
+    const r       = await fetch(`${API}/api/image/engines`, {headers:H});
     const engines = await r.json();
-    const sel = document.getElementById('imggen-engine');
+    const sel     = document.getElementById('imggen-engine');
     sel.innerHTML = '';
     engines.forEach(e => {
       const o = document.createElement('option');
       o.value = e.id; o.textContent = e.label;
       sel.appendChild(o);
     });
-  } catch(e) { /* usa opciones por defecto */ }
+  } catch(e) {}
 }
+
 function closeImgGen() { document.getElementById('imggen-modal').classList.remove('open'); }
 
-// ── STYLE CHIPS ──────────────────────────────────────────────────────────────
 let selectedStyle = '';
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.style-chip').forEach(chip => {
@@ -965,8 +1351,7 @@ async function generateImage() {
   const result  = document.getElementById('img-gen-result');
   const badge   = document.getElementById('provider-badge');
 
-  btn.disabled   = true;
-  btn.textContent = 'Generando...';
+  btn.disabled = true; btn.textContent = 'Generando...';
   const engineLabel = document.getElementById('imggen-engine').options[document.getElementById('imggen-engine').selectedIndex].text;
   status.textContent = `⏳ Generando con ${engineLabel}...`;
   result.innerHTML = `<div class="img-loading"><div class="img-spinner"></div> Generando imagen...</div>`;
@@ -974,21 +1359,17 @@ async function generateImage() {
   try {
     const engine = document.getElementById('imggen-engine').value;
     const r = await fetch(`${API}/api/image/generate`, {
-      method: 'POST', headers: H,
-      body: JSON.stringify({ prompt, style: selectedStyle, aspect, quality, engine })
+      method:'POST', headers:H,
+      body: JSON.stringify({prompt, style: selectedStyle, aspect, quality, engine})
     });
     const data = await r.json();
 
     if (data.data && data.data[0]) {
-      const item = data.data[0];
-      const providerLabel = data.provider === 'huggingface'
-        ? '🤗 Hugging Face' : '🌐 Pollinations';
-      badge.textContent = `✅ ${data.label || providerLabel} · ${data.provider}`;
+      const item          = data.data[0];
+      const providerLabel = data.provider === 'huggingface' ? '🤗 Hugging Face' : '🌐 Pollinations';
+      badge.textContent   = `✅ ${data.label || providerLabel} · ${data.provider}`;
 
-      // Si es base64 (Gemini), mostrar directo. Si es URL (Pollinations), cargar.
       if (item.b64) {
-        const mimeMatch = item.url.match(/data:([^;]+);/);
-        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
         renderGeneratedImage(item.url, prompt, data.provider, true);
         status.textContent = `✅ Listo con ${providerLabel}`;
       } else {
@@ -996,7 +1377,10 @@ async function generateImage() {
         const img = new Image();
         img.onload  = () => { renderGeneratedImage(item.url, prompt, data.provider, false); status.textContent = `✅ Listo con ${providerLabel}`; };
         img.onerror = () => {
-          result.innerHTML = `<a href="${item.url}" target="_blank" style="color:var(--accent);font-size:12px;font-family:'Space Mono',monospace;display:block;padding:16px;text-align:center;border:1px solid var(--border);border-radius:8px">↗ Imagen lista — toca para ver</a>`;
+          result.innerHTML = `<a href="${item.url}" target="_blank"
+            style="color:var(--accent);font-size:12px;font-family:'Space Mono',monospace;display:block;
+            padding:16px;text-align:center;border:1px solid var(--border);border-radius:8px">
+            ↗ Imagen lista — toca para ver</a>`;
           status.textContent = 'Toca el enlace para ver la imagen';
         };
         img.src = item.url;
@@ -1009,12 +1393,11 @@ async function generateImage() {
     result.innerHTML = '';
     status.textContent = '❌ Error conectando al servidor';
   }
-  btn.disabled    = false;
-  btn.textContent = '✨ Generar';
+  btn.disabled = false; btn.textContent = '✨ Generar';
 }
 
 function renderGeneratedImage(src, prompt, provider, isB64) {
-  const result = document.getElementById('img-gen-result');
+  const result       = document.getElementById('img-gen-result');
   const downloadAttr = isB64 ? `download="cesarai_imagen.png"` : `target="_blank"`;
   result.innerHTML = `
     <div style="position:relative;margin-top:10px;">
@@ -1022,13 +1405,10 @@ function renderGeneratedImage(src, prompt, provider, isB64) {
         style="max-width:100%;border-radius:10px;border:1px solid var(--border);display:block;">
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
         <a href="${src}" ${downloadAttr}
-          style="flex:1;text-align:center;padding:7px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:11px;font-family:'Space Mono',monospace;text-decoration:none;">
+          style="flex:1;text-align:center;padding:7px;background:var(--bg3);border:1px solid var(--border);
+          border-radius:8px;color:var(--accent);font-size:11px;font-family:'Space Mono',monospace;text-decoration:none;">
           ⬇ Descargar
         </a>
-        <button onclick="sendImageToChat('${src.substring(0,50)}...')"
-          style="flex:1;padding:7px;background:rgba(124,106,247,.15);border:1px solid rgba(124,106,247,.3);border-radius:8px;color:var(--accent);font-size:11px;font-family:'Space Mono',monospace;cursor:pointer;">
-          💬 Enviar al chat
-        </button>
       </div>
     </div>`;
   if (currentSession) {
@@ -1038,18 +1418,13 @@ function renderGeneratedImage(src, prompt, provider, isB64) {
   }
 }
 
-function sendImageToChat(preview) {
-  closeImgGen();
-  showToast('Imagen enviada al chat ✅');
-}
-
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
 
 async function openSettings() {
   try {
     const r = await fetch(`${API}/api/profile`, {headers:H});
     const p = await r.json();
-    document.getElementById('cfg-name').value = p.name || '';
+    document.getElementById('cfg-name').value        = p.name || '';
     document.getElementById('cfg-personality').value = p.personality || '';
   } catch(e) {}
   document.getElementById('settings-modal').classList.add('open');
@@ -1059,14 +1434,13 @@ function closeSettings() { document.getElementById('settings-modal').classList.r
 
 async function saveSettings() {
   const data = {
-    name: document.getElementById('cfg-name').value,
+    name:        document.getElementById('cfg-name').value,
     personality: document.getElementById('cfg-personality').value
   };
   try {
     await fetch(`${API}/api/profile`, {method:'POST', headers:H, body:JSON.stringify(data)});
     showToast('Configuracion guardada');
     closeSettings();
-    // Update display name
     if (data.name) {
       document.getElementById('user-name-display').textContent = data.name;
       document.getElementById('user-avatar').textContent = data.name[0].toUpperCase();
@@ -1087,7 +1461,7 @@ function setupVoice() {
     if (e.results[e.results.length-1].isFinal) { stopVoice(); sendMessage(); }
   };
   recognition.onerror = () => stopVoice();
-  recognition.onend = () => stopVoice();
+  recognition.onend   = () => stopVoice();
 }
 
 function toggleVoice() { isRecording ? stopVoice() : startVoice(); }
@@ -1107,7 +1481,7 @@ function speakText(text) {
   if (!synth) return;
   stopTTS();
   const clean = text.replace(/[*#_\[\]()/]/g,'').replace(/\n+/g,'. ');
-  const utt = new SpeechSynthesisUtterance(clean);
+  const utt   = new SpeechSynthesisUtterance(clean);
   utt.lang = 'es-ES'; utt.rate = 1.0;
   const bar = document.getElementById('tts-bar');
   document.getElementById('tts-text').textContent = clean.slice(0,50)+(clean.length>50?'...':'');

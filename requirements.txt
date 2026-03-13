@@ -2,3 +2,4 @@ flask
 httpx
 gunicorn
 psycopg2-binary
+pypdf

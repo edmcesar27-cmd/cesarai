@@ -7,6 +7,9 @@ import os
 import base64
 import hashlib
 import secrets
+import zipfile
+import io
+import mimetypes
 from collections import defaultdict
 
 app = Flask(__name__)
@@ -15,6 +18,8 @@ app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
 API_KEY   = os.environ.get("API_KEY", "test123")
 HTML_PATH = os.path.join(os.path.dirname(__file__), 'index.html')
 DB_PATH   = os.path.join(os.path.dirname(__file__), 'cesarai.db')
+
+TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "")
 
 # ── DATABASE BACKEND (SQLite ó PostgreSQL) ────────────────────────────────────
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
@@ -38,20 +43,16 @@ else:
 # ── PROVIDERS ─────────────────────────────────────────────────────────────────
 image_sessions = {}
 
-# Motores de imagen disponibles (servidor descarga → base64, sin CORS)
 IMAGE_ENGINES = {
-    # ── Pollinations (sin key, siempre disponible) ─────────────────────────
     "flux":         {"provider": "pollinations", "model": "flux",         "label": "FLUX Pro",        "key": False},
     "flux-schnell": {"provider": "pollinations", "model": "flux-schnell", "label": "FLUX Schnell ⚡",  "key": False},
     "flux-realism": {"provider": "pollinations", "model": "flux-realism", "label": "FLUX Realism 📷", "key": False},
     "turbo":        {"provider": "pollinations", "model": "turbo",        "label": "Turbo (SD XL)",   "key": False},
-    # ── Hugging Face (key gratis en huggingface.co) ────────────────────────
     "hf-flux":      {"provider": "huggingface",  "model": "black-forest-labs/FLUX.1-schnell", "label": "HF FLUX Schnell", "key": True},
     "hf-sd35":      {"provider": "huggingface",  "model": "stabilityai/stable-diffusion-3.5-large", "label": "HF SD 3.5 Large", "key": True},
 }
 
 PROVIDERS = {
-    # ✅ GROQ — Ultra rápido, 100% gratis, sin tarjeta
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
         "api_key":  os.environ.get("GROQ_API_KEY", ""),
@@ -62,7 +63,6 @@ PROVIDERS = {
         ],
         "type": "openai"
     },
-    # ✅ GEMINI — Google AI Studio, 500 req/día gratis, sin tarjeta
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
         "api_key":  os.environ.get("GEMINI_API_KEY", ""),
@@ -73,8 +73,6 @@ PROVIDERS = {
         ],
         "type": "openai"
     },
-    # ✅ MISTRAL — Free tier (solo necesita número de teléfono, sin tarjeta)
-    # Registrate en: console.mistral.ai -> Experiment plan
     "mistral": {
         "base_url": "https://api.mistral.ai/v1",
         "api_key":  os.environ.get("MISTRAL_API_KEY", ""),
@@ -119,7 +117,6 @@ def get_db():
     return sqlite3.connect(DB_PATH)
 
 def init_db():
-    """Crea las tablas si no existen. Se llama a nivel módulo (funciona con gunicorn)."""
     conn = get_db()
     c    = conn.cursor()
     try:
@@ -182,8 +179,6 @@ def init_db():
     finally:
         conn.close()
 
-# ── LLAMAR init_db() A NIVEL MÓDULO ──────────────────────────────────────────
-# CRÍTICO: esto asegura que las tablas existen tanto con gunicorn como con python proxy.py
 init_db()
 
 # ── USER HELPERS ──────────────────────────────────────────────────────────────
@@ -261,7 +256,9 @@ def build_system_prompt(user):
     base   = (
         f"Eres CesarIA, el asistente personal inteligente de {name}. "
         "Eres directo, útil, amigable y sarcástico cuando corresponde. "
-        "Recuerdas el contexto completo de la conversación incluyendo imágenes enviadas."
+        "Recuerdas el contexto completo de la conversación incluyendo imágenes y archivos enviados. "
+        "Cuando recibes resultados de búsqueda web, los usas para dar respuestas actualizadas y precisas. "
+        "Cuando recibes contenido de archivos, lo analizas en detalle y respondes sobre él."
     )
     return f"{base}\n\n{custom}" if custom else base
 
@@ -338,6 +335,178 @@ def build_messages_with_image(session_id, new_text, system_prompt):
         messages.append({"role": "user", "content": new_text})
     return messages
 
+# ── WEB SEARCH (TAVILY) ───────────────────────────────────────────────────────
+
+def web_search(query: str, max_results: int = 5) -> dict:
+    """Busca en la web usando Tavily y retorna resultados estructurados."""
+    if not TAVILY_API_KEY:
+        return {"error": "TAVILY_API_KEY no configurada", "results": []}
+    try:
+        resp = httpx.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": TAVILY_API_KEY,
+                "query": query,
+                "search_depth": "basic",
+                "max_results": max_results,
+                "include_answer": True,
+                "include_raw_content": False
+            },
+            timeout=15
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            results = []
+            for r in data.get("results", []):
+                results.append({
+                    "title":   r.get("title", ""),
+                    "url":     r.get("url", ""),
+                    "snippet": r.get("content", "")[:400]
+                })
+            return {
+                "answer":  data.get("answer", ""),
+                "results": results,
+                "query":   query
+            }
+        else:
+            print(f"[SEARCH] ❌ Tavily HTTP {resp.status_code} — {resp.text[:200]}")
+            return {"error": f"Error {resp.status_code}", "results": []}
+    except Exception as e:
+        print(f"[SEARCH] ❌ excepción: {e}")
+        return {"error": str(e), "results": []}
+
+def format_search_context(search_data: dict) -> str:
+    """Convierte resultados de búsqueda en texto para el contexto del modelo."""
+    if search_data.get("error"):
+        return f"[Búsqueda web falló: {search_data['error']}]"
+
+    lines = [f"🔍 Resultados de búsqueda para: \"{search_data.get('query', '')}\""]
+
+    if search_data.get("answer"):
+        lines.append(f"\n📌 Respuesta directa: {search_data['answer']}")
+
+    for i, r in enumerate(search_data.get("results", []), 1):
+        lines.append(f"\n[{i}] {r['title']}")
+        lines.append(f"URL: {r['url']}")
+        lines.append(f"{r['snippet']}")
+
+    lines.append(f"\n[Fecha de búsqueda: {time.strftime('%Y-%m-%d %H:%M UTC')}]")
+    return "\n".join(lines)
+
+# ── FILE PROCESSING ───────────────────────────────────────────────────────────
+
+TEXT_EXTENSIONS = {
+    '.txt', '.md', '.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.htm',
+    '.css', '.json', '.xml', '.yaml', '.yml', '.csv', '.env', '.sh',
+    '.bash', '.sql', '.rs', '.go', '.java', '.c', '.cpp', '.h', '.hpp',
+    '.php', '.rb', '.swift', '.kt', '.dart', '.vue', '.svelte', '.toml',
+    '.ini', '.cfg', '.conf', '.log', '.gitignore', '.dockerfile', '.tf'
+}
+
+def extract_text_from_file(file_bytes: bytes, filename: str) -> str:
+    """Extrae texto de un archivo según su extensión."""
+    ext = os.path.splitext(filename.lower())[1]
+
+    # PDF
+    if ext == '.pdf':
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+            pages = []
+            for i, page in enumerate(reader.pages[:30]):  # máx 30 páginas
+                text = page.extract_text()
+                if text.strip():
+                    pages.append(f"--- Página {i+1} ---\n{text}")
+            return "\n\n".join(pages) if pages else "[PDF sin texto extraíble]"
+        except ImportError:
+            return "[PDF: instala pypdf para leer PDFs — pip install pypdf]"
+        except Exception as e:
+            return f"[Error leyendo PDF: {e}]"
+
+    # Texto plano / código
+    if ext in TEXT_EXTENSIONS or ext == '':
+        for encoding in ['utf-8', 'latin-1', 'cp1252']:
+            try:
+                return file_bytes.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return "[Archivo binario — no se puede leer como texto]"
+
+    # Fallback
+    try:
+        return file_bytes.decode('utf-8')
+    except Exception:
+        return f"[Archivo {ext} no soportado para lectura de texto]"
+
+def process_zip(zip_bytes: bytes) -> dict:
+    """Descomprime un ZIP y retorna la lista de archivos con su contenido."""
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    except zipfile.BadZipFile:
+        return {"error": "El archivo no es un ZIP válido", "files": []}
+
+    all_names = zf.namelist()
+    # Filtrar directorios y archivos del sistema
+    file_names = [n for n in all_names if not n.endswith('/') and
+                  not os.path.basename(n).startswith('.') and
+                  '__MACOSX' not in n and 'node_modules' not in n]
+
+    files_info = []
+    total_text_size = 0
+    MAX_TEXT_TOTAL = 80_000  # caracteres
+
+    for name in file_names[:50]:  # máx 50 archivos
+        ext = os.path.splitext(name.lower())[1]
+        info = zf.getinfo(name)
+        file_entry = {
+            "name": name,
+            "size": info.file_size,
+            "ext":  ext,
+            "text": None
+        }
+
+        # Leer texto si es archivo de texto y no supera el límite
+        if ext in TEXT_EXTENSIONS and info.file_size < 200_000 and total_text_size < MAX_TEXT_TOTAL:
+            try:
+                raw = zf.read(name)
+                text = extract_text_from_file(raw, name)
+                file_entry["text"] = text
+                total_text_size += len(text)
+            except Exception as e:
+                file_entry["text"] = f"[Error leyendo: {e}]"
+
+        files_info.append(file_entry)
+
+    zf.close()
+    return {
+        "total_files":   len(all_names),
+        "readable_files": len(file_names),
+        "files": files_info
+    }
+
+def format_zip_context(zip_data: dict, selected_files: list = None) -> str:
+    """Formatea el contenido del ZIP para el contexto del modelo."""
+    if zip_data.get("error"):
+        return f"[Error en ZIP: {zip_data['error']}]"
+
+    files = zip_data["files"]
+    if selected_files:
+        files = [f for f in files if f["name"] in selected_files]
+
+    lines = [f"📦 Contenido del ZIP ({zip_data['readable_files']} archivos):"]
+    for f in files:
+        size_kb = f["size"] / 1024
+        lines.append(f"\n📄 {f['name']} ({size_kb:.1f} KB)")
+        if f.get("text"):
+            preview = f["text"][:3000]
+            if len(f["text"]) > 3000:
+                preview += f"\n... [truncado, {len(f['text'])} chars total]"
+            lines.append(f"```{f['ext'].lstrip('.')}\n{preview}\n```")
+        else:
+            lines.append("[archivo binario]")
+
+    return "\n".join(lines)
+
 # ── AUTH ROUTES ───────────────────────────────────────────────────────────────
 
 @app.route("/api/auth/register", methods=["POST"])
@@ -366,15 +535,14 @@ def register():
             c.execute("SELECT lastval()")
         else:
             c.execute("SELECT last_insert_rowid()")
-        user_id = c.fetchone()[0]
+        new_id = c.fetchone()[0]
+        session["user_id"] = new_id
+        return jsonify({"ok": True, "user": {"id": new_id, "username": username, "display_name": display}})
     except Exception as e:
         conn.rollback()
-        conn.close()
         return jsonify({"error": str(e)}), 500
-    conn.close()
-
-    session["user_id"] = user_id
-    return jsonify({"ok": True, "user": {"id": user_id, "username": username, "display_name": display}})
+    finally:
+        conn.close()
 
 @app.route("/api/auth/login", methods=["POST"])
 def login():
@@ -402,8 +570,6 @@ def me():
     if not user:
         return jsonify({"error": "No autenticado"}), 401
     return jsonify({"id": user["id"], "username": user["username"], "display_name": user["display_name"]})
-
-# ── MODELS ────────────────────────────────────────────────────────────────────
 
 @app.route("/v1/models", methods=["GET"])
 def list_models():
@@ -433,6 +599,8 @@ def chat():
     stream     = body.get("stream", False)
     session_id = body.pop("session_id", f"anon_{user_id}")
     user_text  = body.pop("user_text", None)
+    # Soporte para búsqueda web inyectada desde el frontend
+    web_context = body.pop("web_context", None)
 
     system_prompt = build_system_prompt(user)
 
@@ -448,13 +616,26 @@ def chat():
             if isinstance(last, list):
                 last = " ".join(p["text"] for p in last if p.get("type") == "text")
             save_message(session_id, "user", last, body.get("model"), user_id)
+
+        # Inyectar contexto web si existe
+        if web_context:
+            sys_with_web = system_prompt + f"\n\n{web_context}"
+        else:
+            sys_with_web = system_prompt
+
         if not any(m["role"] == "system" for m in messages):
-            body["messages"] = [{"role": "system", "content": system_prompt}] + messages
+            body["messages"] = [{"role": "system", "content": sys_with_web}] + messages
+        else:
+            # Actualizar system prompt existente con contexto web
+            for m in body["messages"]:
+                if m["role"] == "system":
+                    m["content"] = sys_with_web
+                    break
 
     model         = body.get("model", "llama-3.3-70b-versatile")
     provider_name, provider = get_provider(model)
 
-    print(f"[CHAT] modelo={model} proveedor={provider_name} stream={stream}")
+    print(f"[CHAT] modelo={model} proveedor={provider_name} stream={stream} web={'si' if web_context else 'no'}")
 
     if stream:
         def generate():
@@ -525,8 +706,109 @@ def chat():
             pass
         return jsonify(data), resp.status_code
 
-# ── IMAGE ─────────────────────────────────────────────────────────────────────
+# ── WEB SEARCH ENDPOINT ───────────────────────────────────────────────────────
 
+@app.route("/api/search", methods=["POST"])
+def search_web():
+    """Endpoint para búsqueda web en tiempo real usando Tavily."""
+    if not request.headers.get("Authorization") == f"Bearer {API_KEY}":
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data  = request.json or {}
+    query = (data.get("query") or "").strip()
+    if not query:
+        return jsonify({"error": "Query vacío"}), 400
+
+    if not TAVILY_API_KEY:
+        return jsonify({"error": "Búsqueda web no configurada. Agrega TAVILY_API_KEY en Railway."}), 400
+
+    print(f"[SEARCH] 🔍 Buscando: {query}")
+    results = web_search(query, max_results=data.get("max_results", 5))
+    return jsonify(results)
+
+# ── FILE UPLOAD ENDPOINT ──────────────────────────────────────────────────────
+
+@app.route("/api/files/upload", methods=["POST"])
+def upload_file():
+    """
+    Sube un archivo (txt, pdf, código, zip) y extrae su contenido.
+    Para ZIPs, retorna la lista de archivos y espera que el frontend
+    envíe la acción seleccionada.
+    """
+    if not request.headers.get("Authorization") == f"Bearer {API_KEY}":
+        return jsonify({"error": "Unauthorized"}), 401
+
+    uploaded = request.files.get("file")
+    if not uploaded:
+        return jsonify({"error": "No se envió ningún archivo"}), 400
+
+    filename  = uploaded.filename or "archivo"
+    ext       = os.path.splitext(filename.lower())[1]
+    file_bytes = uploaded.read()
+    size_kb    = len(file_bytes) / 1024
+
+    print(f"[FILE] 📁 Recibido: {filename} ({size_kb:.1f} KB)")
+
+    # ── ZIP ────────────────────────────────────────────────────────────────────
+    if ext == '.zip':
+        zip_data = process_zip(file_bytes)
+        if zip_data.get("error"):
+            return jsonify({"error": zip_data["error"]}), 400
+
+        # Construir lista de archivos para mostrar al usuario
+        file_list = []
+        for f in zip_data["files"]:
+            file_list.append({
+                "name":     f["name"],
+                "size_kb":  round(f["size"] / 1024, 1),
+                "ext":      f["ext"],
+                "readable": f.get("text") is not None
+            })
+
+        return jsonify({
+            "type":          "zip",
+            "filename":      filename,
+            "total_files":   zip_data["total_files"],
+            "readable_files": zip_data["readable_files"],
+            "files":         file_list,
+            # Guardar el contenido serializado para uso posterior
+            "zip_content":   json.dumps([
+                {"name": f["name"], "size": f["size"], "ext": f["ext"], "text": f.get("text")}
+                for f in zip_data["files"]
+            ])
+        })
+
+    # ── PDF ────────────────────────────────────────────────────────────────────
+    elif ext == '.pdf':
+        text = extract_text_from_file(file_bytes, filename)
+        char_count = len(text)
+        return jsonify({
+            "type":       "pdf",
+            "filename":   filename,
+            "size_kb":    round(size_kb, 1),
+            "char_count": char_count,
+            "content":    text[:100_000],  # límite de seguridad
+            "truncated":  char_count > 100_000
+        })
+
+    # ── TEXTO / CÓDIGO ────────────────────────────────────────────────────────
+    elif ext in TEXT_EXTENSIONS or size_kb < 500:
+        text = extract_text_from_file(file_bytes, filename)
+        char_count = len(text)
+        return jsonify({
+            "type":       "text",
+            "filename":   filename,
+            "size_kb":    round(size_kb, 1),
+            "ext":        ext,
+            "char_count": char_count,
+            "content":    text[:100_000],
+            "truncated":  char_count > 100_000
+        })
+
+    else:
+        return jsonify({"error": f"Tipo de archivo '{ext}' no soportado"}), 415
+
+# ── IMAGE ─────────────────────────────────────────────────────────────────────
 
 @app.route("/api/image/engines", methods=["GET"])
 def list_engines():
@@ -536,7 +818,7 @@ def list_engines():
     engines = []
     for key, eng in IMAGE_ENGINES.items():
         if eng["key"] and not hf_key:
-            continue  # no mostrar HF si no hay key
+            continue
         engines.append({"id": key, "label": eng["label"], "provider": eng["provider"]})
     return jsonify(engines)
 
@@ -574,7 +856,6 @@ def generate_image():
     aspect_map = {"1:1":(1024,1024), "16:9":(1280,720), "9:16":(720,1280), "4:3":(1024,768)}
     width, height = aspect_map.get(aspect, (1024, 1024))
 
-    # ── POLLINATIONS ─────────────────────────────────────────────────────────
     if engine["provider"] == "pollinations":
         import urllib.parse
         seed     = int(time.time()) % 99999
@@ -600,7 +881,6 @@ def generate_image():
         except Exception as e:
             print(f"[IMG] ❌ Pollinations excepción: {e}")
 
-    # ── HUGGING FACE ─────────────────────────────────────────────────────────
     elif engine["provider"] == "huggingface":
         hf_key = os.environ.get("HF_API_KEY", "")
         if not hf_key:
