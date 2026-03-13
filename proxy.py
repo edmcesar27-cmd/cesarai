@@ -530,21 +530,76 @@ def image_proxy():
 def generate_image():
     if not request.headers.get("Authorization") == f"Bearer {API_KEY}":
         return jsonify({"error": "Unauthorized"}), 401
-    body   = request.json
-    prompt = (body.get("prompt") or "").strip()
+    body        = request.json
+    prompt      = (body.get("prompt") or "").strip()
+    style       = body.get("style", "")
+    aspect      = body.get("aspect", "1:1")   # 1:1 | 16:9 | 9:16 | 4:3
+    quality     = body.get("quality", "normal") # normal | hd
+
     if not prompt:
         return jsonify({"error": "Prompt vacío"}), 400
-    size   = body.get("size", "1024x1024")
-    width, height = 1024, 1024
-    if "x" in size:
+
+    # Enriquecer prompt con estilo si se especificó
+    full_prompt = f"{prompt}, {style}" if style else prompt
+    if quality == "hd":
+        full_prompt += ", ultra detailed, high quality, 8k"
+
+    # ── 1) Intentar Gemini imagen (nativo, 500/día gratis) ─────────────────
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    if gemini_key:
         try:
-            w, h = size.split("x"); width, height = int(w), int(h)
-        except Exception:
-            pass
+            gemini_url = (
+                "https://generativelanguage.googleapis.com/v1beta/models/"
+                "gemini-2.0-flash-exp:generateContent"
+            )
+            gem_body = {
+                "contents": [{"parts": [{"text": f"Generate an image: {full_prompt}"}]}],
+                "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]}
+            }
+            gem_resp = httpx.post(
+                gemini_url,
+                json=gem_body,
+                headers={"Content-Type": "application/json"},
+                params={"key": gemini_key},
+                timeout=60
+            )
+            if gem_resp.status_code == 200:
+                gdata = gem_resp.json()
+                parts = gdata.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                for part in parts:
+                    if part.get("inlineData", {}).get("mimeType", "").startswith("image/"):
+                        img_b64  = part["inlineData"]["data"]
+                        mime     = part["inlineData"]["mimeType"]
+                        data_url = f"data:{mime};base64,{img_b64}"
+                        print(f"[GEMINI IMG] ✅ imagen generada con gemini-2.0-flash-exp")
+                        return jsonify({
+                            "data":     [{"url": data_url, "b64": img_b64}],
+                            "prompt":   full_prompt,
+                            "provider": "gemini",
+                            "model":    "gemini-2.0-flash-exp"
+                        })
+            else:
+                print(f"[GEMINI IMG] ❌ HTTP {gem_resp.status_code} — {gem_resp.text[:200]}")
+        except Exception as e:
+            print(f"[GEMINI IMG] ❌ excepción: {e}")
+
+    # ── 2) Fallback: Pollinations (sin key, siempre disponible) ───────────
     import urllib.parse
-    seed    = int(time.time()) % 99999
-    img_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt)}?width={width}&height={height}&seed={seed}&nologo=true"
-    return jsonify({"data": [{"url": img_url}], "prompt": prompt})
+    aspect_map  = {"1:1": (1024,1024), "16:9": (1280,720), "9:16": (720,1280), "4:3": (1024,768)}
+    width, height = aspect_map.get(aspect, (1024, 1024))
+    seed        = int(time.time()) % 99999
+    model_param = "flux" if quality == "hd" else "turbo"
+    img_url     = (
+        f"https://image.pollinations.ai/prompt/{urllib.parse.quote(full_prompt)}"
+        f"?width={width}&height={height}&seed={seed}&nologo=true&model={model_param}"
+    )
+    print(f"[POLLINATIONS] fallback → {img_url}")
+    return jsonify({
+        "data":     [{"url": img_url}],
+        "prompt":   full_prompt,
+        "provider": "pollinations",
+        "model":    model_param
+    })
 
 @app.route("/api/image/analyze", methods=["POST"])
 def analyze_image():

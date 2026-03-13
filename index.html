@@ -265,6 +265,12 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
   .sidebar-overlay.open{display:block;}
   .msg-bubble{max-width:93%;}
 }
+
+.style-chip{padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;
+  font-size:11px;color:var(--text2);cursor:pointer;transition:all .2s;font-family:'Space Mono',monospace;
+  white-space:nowrap;}
+.style-chip.active{background:rgba(124,106,247,.2);border-color:var(--accent);color:var(--accent);}
+.style-chip:hover{border-color:var(--accent);color:var(--text);}
 </style>
 </head>
 <body>
@@ -395,22 +401,62 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
 
 <!-- Image gen modal -->
 <div class="modal-overlay" id="imggen-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:480px;max-height:90dvh;overflow-y:auto;">
     <h2>🎨 Generar Imagen</h2>
+
     <div class="form-group">
-      <label class="form-label">Descripcion de la imagen</label>
-      <textarea class="form-textarea" id="imggen-prompt" placeholder="Un leon con alas doradas, hiperrealista..." rows="3"></textarea>
+      <label class="form-label">Descripción</label>
+      <textarea class="form-textarea" id="imggen-prompt" rows="3"
+        placeholder="Un astronauta en la jungla, luz cinematográfica, hiperrealista..."></textarea>
     </div>
+
     <div class="form-group">
-      <label class="form-label">Tamano</label>
-      <select class="form-select" id="imggen-size">
-        <option value="1024x1024">1024x1024 - Cuadrado</option>
-        <option value="1280x720">1280x720 - Paisaje</option>
-        <option value="720x1280">720x1280 - Vertical</option>
-      </select>
+      <label class="form-label">Estilo</label>
+      <div id="style-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+        <span class="style-chip active" data-style="">Sin estilo</span>
+        <span class="style-chip" data-style="photorealistic, photography, DSLR">📷 Foto real</span>
+        <span class="style-chip" data-style="digital art, illustration, vibrant colors">🎨 Digital art</span>
+        <span class="style-chip" data-style="anime style, manga, japanese animation">🌸 Anime</span>
+        <span class="style-chip" data-style="cinematic, movie still, dramatic lighting, film grain">🎬 Cinematic</span>
+        <span class="style-chip" data-style="oil painting, classical art, masterpiece">🖼 Pintura</span>
+        <span class="style-chip" data-style="3D render, octane render, blender, studio lighting">🧊 3D Render</span>
+        <span class="style-chip" data-style="minimalist, flat design, clean, vector art">✦ Minimalista</span>
+        <span class="style-chip" data-style="cyberpunk, neon lights, futuristic, dark city">🌆 Cyberpunk</span>
+        <span class="style-chip" data-style="watercolor painting, soft colors, artistic">🎭 Acuarela</span>
+        <span class="style-chip" data-style="logo design, professional, brand identity">💼 Logo</span>
+        <span class="style-chip" data-style="pixel art, 8-bit, retro game style">👾 Pixel art</span>
+      </div>
     </div>
+
+    <div style="display:flex;gap:10px;">
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Proporción</label>
+        <select class="form-select" id="imggen-aspect">
+          <option value="1:1">⬛ Cuadrado 1:1</option>
+          <option value="16:9">▬ Paisaje 16:9</option>
+          <option value="9:16">▮ Vertical 9:16</option>
+          <option value="4:3">▭ Estándar 4:3</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Calidad</label>
+        <select class="form-select" id="imggen-quality">
+          <option value="normal">⚡ Rápida</option>
+          <option value="hd">✨ HD</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Motor</label>
+      <div id="provider-badge" style="font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;margin-top:2px;">
+        Intenta Gemini AI → Pollinations (fallback)
+      </div>
+    </div>
+
     <div id="img-gen-result"></div>
-    <div id="img-gen-status"></div>
+    <div id="img-gen-status" style="font-size:12px;color:var(--text2);font-family:'Space Mono',monospace;margin-top:8px;text-align:center;min-height:18px;"></div>
+
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeImgGen()">Cerrar</button>
       <button class="btn-save" id="imggen-btn" onclick="generateImage()">✨ Generar</button>
@@ -874,53 +920,102 @@ function clearImagePreview() {
 function openImgGen() { document.getElementById('imggen-modal').classList.add('open'); }
 function closeImgGen() { document.getElementById('imggen-modal').classList.remove('open'); }
 
-async function generateImage() {
-  const prompt = document.getElementById('imggen-prompt').value.trim();
-  if (!prompt) { showToast('Escribe una descripcion'); return; }
-  const size = document.getElementById('imggen-size').value;
-  const btn = document.getElementById('imggen-btn');
-  const status = document.getElementById('img-gen-status');
-  const result = document.getElementById('img-gen-result');
+// ── STYLE CHIPS ──────────────────────────────────────────────────────────────
+let selectedStyle = '';
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.style-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.style-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      selectedStyle = chip.dataset.style;
+    });
+  });
+});
 
-  btn.disabled = true;
+async function generateImage() {
+  const prompt  = document.getElementById('imggen-prompt').value.trim();
+  if (!prompt) { showToast('Escribe una descripción'); return; }
+  const aspect  = document.getElementById('imggen-aspect').value;
+  const quality = document.getElementById('imggen-quality').value;
+  const btn     = document.getElementById('imggen-btn');
+  const status  = document.getElementById('img-gen-status');
+  const result  = document.getElementById('img-gen-result');
+  const badge   = document.getElementById('provider-badge');
+
+  btn.disabled   = true;
   btn.textContent = 'Generando...';
-  status.textContent = 'Puede tardar 15-30 segundos...';
-  result.innerHTML = '<div class="img-loading"><div class="img-spinner"></div> Generando imagen con Flux AI...</div>';
+  status.textContent = '⏳ Procesando con Gemini AI...';
+  result.innerHTML = `<div class="img-loading"><div class="img-spinner"></div> Generando imagen...</div>`;
 
   try {
     const r = await fetch(`${API}/api/image/generate`, {
-      method:'POST', headers:H, body: JSON.stringify({prompt, size})
+      method: 'POST', headers: H,
+      body: JSON.stringify({ prompt, style: selectedStyle, aspect, quality })
     });
     const data = await r.json();
+
     if (data.data && data.data[0]) {
-      const imgUrl = data.data[0].url;
-      status.textContent = 'Cargando imagen...';
-      result.innerHTML = `<div class="img-loading"><div class="img-spinner"></div> Cargando...</div>`;
-      const img = new Image();
-      img.onload = () => {
-        result.innerHTML = `<img src="${imgUrl}" alt="Imagen generada" style="max-width:100%;border-radius:10px;border:1px solid var(--border)">
-          <br><a href="${imgUrl}" target="_blank" style="color:var(--accent);font-size:11px;font-family:'Space Mono',monospace;margin-top:6px;display:inline-block">↗ Abrir imagen completa</a>`;
-        status.textContent = '✓ Imagen lista!';
-        if (currentSession) {
-          appendMessage('assistant', `Imagen generada: "${prompt}"<br><img src="${imgUrl}" style="max-width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--border)">`);
-        }
-      };
-      img.onerror = () => {
-        result.innerHTML = `<a href="${imgUrl}" target="_blank" style="color:var(--accent);font-size:12px;font-family:'Space Mono',monospace;display:block;padding:16px;text-align:center;border:1px solid var(--border);border-radius:8px">↗ Imagen generada — toca aquí para verla</a>`;
-        status.textContent = 'La imagen no carga aquí, usa el enlace de arriba.';
-      };
-      img.src = imgUrl;
+      const item = data.data[0];
+      const providerLabel = data.provider === 'gemini'
+        ? '⚡ Gemini AI' : '🌐 Pollinations';
+      badge.textContent = `Generado con ${providerLabel} · ${data.model || ''}`;
+
+      // Si es base64 (Gemini), mostrar directo. Si es URL (Pollinations), cargar.
+      if (item.b64) {
+        const mimeMatch = item.url.match(/data:([^;]+);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+        renderGeneratedImage(item.url, prompt, data.provider, true);
+        status.textContent = `✅ Listo con ${providerLabel}`;
+      } else {
+        status.textContent = '⏳ Cargando imagen...';
+        const img = new Image();
+        img.onload  = () => { renderGeneratedImage(item.url, prompt, data.provider, false); status.textContent = `✅ Listo con ${providerLabel}`; };
+        img.onerror = () => {
+          result.innerHTML = `<a href="${item.url}" target="_blank" style="color:var(--accent);font-size:12px;font-family:'Space Mono',monospace;display:block;padding:16px;text-align:center;border:1px solid var(--border);border-radius:8px">↗ Imagen lista — toca para ver</a>`;
+          status.textContent = 'Toca el enlace para ver la imagen';
+        };
+        img.src = item.url;
+      }
     } else {
       result.innerHTML = '';
-      status.textContent = 'Error: ' + (data.error || 'No se pudo generar');
+      status.textContent = '❌ ' + (data.error || 'No se pudo generar');
     }
   } catch(e) {
     result.innerHTML = '';
-    status.textContent = 'Error conectando al servidor';
+    status.textContent = '❌ Error conectando al servidor';
   }
-
-  btn.disabled = false;
+  btn.disabled    = false;
   btn.textContent = '✨ Generar';
+}
+
+function renderGeneratedImage(src, prompt, provider, isB64) {
+  const result = document.getElementById('img-gen-result');
+  const downloadAttr = isB64 ? `download="cesarai_imagen.png"` : `target="_blank"`;
+  result.innerHTML = `
+    <div style="position:relative;margin-top:10px;">
+      <img src="${src}" alt="Imagen generada"
+        style="max-width:100%;border-radius:10px;border:1px solid var(--border);display:block;">
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <a href="${src}" ${downloadAttr}
+          style="flex:1;text-align:center;padding:7px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:11px;font-family:'Space Mono',monospace;text-decoration:none;">
+          ⬇ Descargar
+        </a>
+        <button onclick="sendImageToChat('${src.substring(0,50)}...')"
+          style="flex:1;padding:7px;background:rgba(124,106,247,.15);border:1px solid rgba(124,106,247,.3);border-radius:8px;color:var(--accent);font-size:11px;font-family:'Space Mono',monospace;cursor:pointer;">
+          💬 Enviar al chat
+        </button>
+      </div>
+    </div>`;
+  if (currentSession) {
+    appendMessage('assistant',
+      `🎨 Imagen generada: <em>"${prompt}"</em><br><img src="${src}"
+      style="max-width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--border)">`);
+  }
+}
+
+function sendImageToChat(preview) {
+  closeImgGen();
+  showToast('Imagen enviada al chat ✅');
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
